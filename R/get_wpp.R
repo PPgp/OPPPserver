@@ -108,9 +108,26 @@ get_wpp_tfr <- function(country){
 
 # Getter function for the WPP datasets.
 # Since some of the datasets are big, it caches already used datasets.
-##' @export
+#' @export
 get_wpp <- memoise::memoise(function(dataset_name){
     data(list = dataset_name)
     return(get(dataset_name))
 }, cache = cachem::cache_mem(max_size = 1024 * 1024^2,
                              max_age = 3600*3)) # 1G for 3 hours
+
+
+get_country_code <- function(country){
+    # return the UN code for given country
+    locations <- get_wpp("UNlocations")
+    return(locations[locations$name == country, "country_code"])
+}
+
+get_wpp_pop_by_age_multiple_years <- function(un_code, end_year = NULL){
+    country_code <- NULL # to satisfy CRAN check
+    all_wpp_pop <- get_wpp("popAge1dt")[country_code == un_code] # load observed data
+    if(is.null(end_year) || end_year > all_wpp_pop[, max(year)]) # add projected data if needed
+        all_wpp_pop <- rbind(all_wpp_pop, get_wpp("popprojAge1dt")[country_code == un_code],
+                         fill = TRUE)[, year := as.integer(year)]
+    if(!is.null(end_year)) all_wpp_pop <- all_wpp_pop[year <= end_year] # end_year should be the latest year in the data
+    return(all_wpp_pop)
+}
