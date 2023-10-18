@@ -110,11 +110,10 @@ get_wpp_tfr <- function(country){
 # Since some of the datasets are big, it caches already used datasets.
 #' @export
 get_wpp <- memoise::memoise(function(dataset_name){
-    data(list = dataset_name)
+    data(list = dataset_name, package = "wpp2022")
     return(get(dataset_name))
 }, cache = cachem::cache_mem(max_size = 1024 * 1024^2,
                              max_age = 3600*3)) # 1G for 3 hours
-
 
 get_country_code <- function(country){
     # return the UN code for given country
