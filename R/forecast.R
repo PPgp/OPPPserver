@@ -22,7 +22,12 @@
 #'      \item{population_by_broad_age_group}{Data table where population is grouped by broader age groups.
 #'          (columns \code{year}, \code{age}, \code{pop}, \code{pop_percent}).}
 #'      \item{population_by_time}{Data table where with total population as well as by broader age groups.
-#'          It also contains the UN median (columns \code{year}, \code{age}, \code{pop}, \code{un_pop_median}.)}
+#'          It also contains the UN median and the 95\% probability intervals 
+#'          (columns \code{year}, \code{age}, \code{pop}, \code{un_pop_median}, 
+#'          \code{un_pop_95low}, \code{un_pop_95high}).}
+#'      \item{tfr_by_time}{Data table with the total fertility forecast and the UN median and the 
+#'          95\% probability intervals (columns \code{year}, \code{tfr}, \code{un_tfr_median}, 
+#'          \code{un_tfr_95low}, \code{un_tfr_95high}).}
 #' }
 #' @details For now the function only runs when \code{start_year} is 2021 or smaller.
 #'     Note that for now each run of this function creates a new temporary directory.
@@ -35,6 +40,10 @@
 #'
 #' forecast <- run_forecast("Niger", start_year = 2021, tfr = my_tfr)
 #'
+#' # plot population and fertility
+#' ################################
+#' par(mfrow = c(1,2))
+#' 
 #' # extract total population
 #' respop <- forecast$population_by_time[age == "0+"]
 #'
@@ -42,8 +51,21 @@
 #' plot(respop$year, respop$pop, type = "l", col = "red",
 #'     main = "Niger population", ylab = "Population", xlab = "")
 #' lines(respop$year, respop$un_pop_median, col = "blue")
-#' legend("topleft", legend = c("my scenario", "UN"), col = c("red", "blue"),
-#'     lty = 1, bty = "n")
+#' lines(respop$year, respop$un_pop_95low, col = "blue", lty = 2)
+#' lines(respop$year, respop$un_pop_95high, col = "blue", lty = 2)
+#' legend("topleft", legend = c("my scenario", "UN", "UN 95% PI"), col = c("red", "blue", "blue"),
+#'     lty = c(1, 1, 2), bty = "n")
+#'     
+#' # extract fertility results
+#' restfr <- forecast$tfr_by_time
+#' plot(restfr$year, restfr$tfr, type = "l", col = "red", ylim = c(0, 8),
+#'     main = "Niger TFR", ylab = "Total fertility rate", xlab = "")
+#' lines(restfr$year, restfr$un_tfr_median, col = "blue")
+#' lines(restfr$year, restfr$un_tfr_95low, col = "blue", lty = 2)
+#' lines(restfr$year, restfr$un_tfr_95high, col = "blue", lty = 2)
+#' legend("bottomleft", legend = c("my scenario", "UN", "UN 95% PI"), col = c("red", "blue", "blue"),
+#'     lty = c(1, 1, 2), bty = "n")
+#' 
 #'
 #' # remove prediction directory
 #' remove_forecast(forecast)
@@ -83,6 +105,7 @@ run_forecast <- function(country, start_year = 2021, end_year = 2100,
     pop_by_age_sex <- extract_pop_by_age_sex(pred, units = units)
     pop_by_broad_age <- get_pop_by_broad_age(pop_by_age_sex)
     pop_by_time <- get_pop_by_time(pop_by_age_sex, code)
+    tfr_by_time <- get_tfr_by_time(pred)
 
     # cleanup
     ##########
@@ -97,7 +120,8 @@ run_forecast <- function(country, start_year = 2021, end_year = 2100,
     return(list(prediction = pred,
                 population_by_age_and_sex = pop_by_age_sex,
                 population_by_broad_age_group = pop_by_broad_age,
-                population_by_time = pop_by_time
+                population_by_time = pop_by_time,
+                tfr_by_time = tfr_by_time
                 )
            )
 }
@@ -164,7 +188,6 @@ prepare_tfr <- function(tfr, country, un_code, start_year){
 extract_pop_by_age_sex <- function(pred, units = 1000){
     age <- age_to_100 <- pop <- NULL # to satisfy CRAN check
     pop_dt_sx <- list()
-    pop_expression <- paste0("P", pred$countries$code)
     for(sx in c("M", "F")){
         # extract observed pop
         obs_df <- get.pop.exba(paste0("P", pred$countries$code, "_", sx, "{}"),
@@ -265,10 +288,37 @@ get_pop_by_time <- function(pop_by_age_sex, un_code) {
                                                age_groups = c(65, 150),
                                                compute_percent = FALSE))
     dt[unpop_groups, un_pop_median := i.pop, on = c("year", "age")]
-    # TODO: add prediction intervals
+
+    # add prediction intervals for total pop
+    untotpop <- get_wpp_pop_multiple_years(un_code)[, age := "0+"]
+    # merge with dt for the 0+ age group
+    dt[untotpop, `:=`(un_pop_95low = i.pop_95l, un_pop_95high = i.pop_95u), 
+       on = c("year", "age")]
+    
+    # TODO: add intervals for broader age groups 
+    # (need to find them on the UN site and put somewhere)
     return(dt)
 }
 
+get_tfr_by_time <- function(pred) {
+    # extract observed and predicted data
+    expression <- paste0("F", pred$countries$code)
+    tfr_data <- c(get.pop.ex(expression, pred, observed = TRUE),
+            get.pop.ex(expression, pred, observed = FALSE)[-1])
+    
+    # convert to long format
+    tfr_long <- data.table(year = as.integer(names(tfr_data)), tfr_data)
+    
+    # extract UN median and PI intervals
+    untfr <- get_wpp_indicator_multiple_years("tfr1dt", "tfrproj1dt", 
+                                              un_code = pred$countries$code)
+    
+    # merge together
+    dt <- merge(tfr_long, untfr[, .(year, un_tfr_median = tfr, 
+                                    un_tfr_95low = tfr_95l, un_tfr_95high = tfr_95u)],
+                all = TRUE, by = "year")
+    return(dt)
+}
 
 #' @export
 remove_forecast <- function(forecast)

@@ -40,7 +40,12 @@ List with elements:
      \item{population_by_broad_age_group}{Data table where population is grouped by broader age groups.
          (columns \code{year}, \code{age}, \code{pop}, \code{pop_percent}).}
      \item{population_by_time}{Data table where with total population as well as by broader age groups.
-         It also contains the UN median (columns \code{year}, \code{age}, \code{pop}, \code{un_pop_median}.)}
+         It also contains the UN median and the 95\% probability intervals 
+         (columns \code{year}, \code{age}, \code{pop}, \code{un_pop_median}, 
+         \code{un_pop_95low}, \code{un_pop_95high}).}
+     \item{tfr_by_time}{Data table with the total fertility forecast and the UN median and the 
+         95\% probability intervals (columns \code{year}, \code{tfr}, \code{un_tfr_median}, 
+         \code{un_tfr_95low}, \code{un_tfr_95high}).}
 }
 }
 \description{
@@ -58,6 +63,10 @@ my_tfr[year >= 2054, tfr := 4]
 
 forecast <- run_forecast("Niger", start_year = 2021, tfr = my_tfr)
 
+# plot population and fertility
+################################
+par(mfrow = c(1,2))
+
 # extract total population
 respop <- forecast$population_by_time[age == "0+"]
 
@@ -65,8 +74,21 @@ respop <- forecast$population_by_time[age == "0+"]
 plot(respop$year, respop$pop, type = "l", col = "red",
     main = "Niger population", ylab = "Population", xlab = "")
 lines(respop$year, respop$un_pop_median, col = "blue")
-legend("topleft", legend = c("my scenario", "UN"), col = c("red", "blue"),
-    lty = 1, bty = "n")
+lines(respop$year, respop$un_pop_95low, col = "blue", lty = 2)
+lines(respop$year, respop$un_pop_95high, col = "blue", lty = 2)
+legend("topleft", legend = c("my scenario", "UN", "UN 95\% PI"), col = c("red", "blue", "blue"),
+    lty = c(1, 1, 2), bty = "n")
+    
+# extract fertility results
+restfr <- forecast$tfr_by_time
+plot(restfr$year, restfr$tfr, type = "l", col = "red",
+    main = "Niger TFR", ylab = "Total fertility rate", xlab = "")
+lines(restfr$year, restfr$un_tfr_median, col = "blue")
+lines(restfr$year, restfr$un_tfr_95low, col = "blue", lty = 2)
+lines(restfr$year, restfr$un_tfr_95high, col = "blue", lty = 2)
+legend("bottomleft", legend = c("my scenario", "UN", "UN 95\% PI"), col = c("red", "blue", "blue"),
+    lty = c(1, 1, 2), bty = "n")
+
 
 # remove prediction directory
 remove_forecast(forecast)
