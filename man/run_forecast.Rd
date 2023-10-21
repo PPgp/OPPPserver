@@ -46,6 +46,14 @@ List with elements:
      \item{tfr_by_time}{Data table with the total fertility forecast and the UN median and the 
          95\% probability intervals (columns \code{year}, \code{tfr}, \code{un_tfr_median}, 
          \code{un_tfr_95low}, \code{un_tfr_95high}).}
+     \item{annual_growth_rate}{Data table with the forecast of annual growth rate as a percentage,
+             computed as \eqn{log(P_t/P_{t-1})*100}, for the same age groups as in \code{population_by_time}
+             (columns \code{year}, \code{age}, \code{growth_rate}).}
+     \item{birth_count_rates}{Data table with the forecast of total births (column \code{births}),
+             crude birth rate (\code{cbr}) and the UN median and 95\% probability intervals 
+             of the respective quantities
+             (columns \code{un_births_median}, \code{un_births_95low}, \code{un_births_95high}, 
+             \code{un_cbr_median}, \code{un_cbr_95low}, \code{un_cbr_95high})}
 }
 }
 \description{
@@ -81,7 +89,7 @@ legend("topleft", legend = c("my scenario", "UN", "UN 95\% PI"), col = c("red", 
     
 # extract fertility results
 restfr <- forecast$tfr_by_time
-plot(restfr$year, restfr$tfr, type = "l", col = "red",
+plot(restfr$year, restfr$tfr, type = "l", col = "red", ylim = c(0, 8),
     main = "Niger TFR", ylab = "Total fertility rate", xlab = "")
 lines(restfr$year, restfr$un_tfr_median, col = "blue")
 lines(restfr$year, restfr$un_tfr_95low, col = "blue", lty = 2)

@@ -28,6 +28,14 @@
 #'      \item{tfr_by_time}{Data table with the total fertility forecast and the UN median and the 
 #'          95\% probability intervals (columns \code{year}, \code{tfr}, \code{un_tfr_median}, 
 #'          \code{un_tfr_95low}, \code{un_tfr_95high}).}
+#'      \item{annual_growth_rate}{Data table with the forecast of annual growth rate as a percentage,
+#'              computed as \eqn{log(P_t/P_{t-1})*100}, for the same age groups as in \code{population_by_time}
+#'              (columns \code{year}, \code{age}, \code{growth_rate}).}
+#'      \item{birth_count_rates}{Data table with the forecast of total births (column \code{births}),
+#'              crude birth rate (\code{cbr}) and the UN median and 95\% probability intervals 
+#'              of the respective quantities
+#'              (columns \code{un_births_median}, \code{un_births_95low}, \code{un_births_95high}, 
+#'              \code{un_cbr_median}, \code{un_cbr_95low}, \code{un_cbr_95high})}
 #' }
 #' @details For now the function only runs when \code{start_year} is 2021 or smaller.
 #'     Note that for now each run of this function creates a new temporary directory.
@@ -99,13 +107,19 @@ run_forecast <- function(country, start_year = 2021, end_year = 2100,
                         fixed.mx = TRUE
                         )
 
+    # In order not to copy the pred object every time we need it in a function,
+    # we put it into an environment that acts as a pointer
+    pred_env <- new.env()
+    pred_env[["prediction"]] <- pred
+    
     # collect results
     #################
-    # extract population by age and sex from quantiles
-    pop_by_age_sex <- extract_pop_by_age_sex(pred, units = units)
+    pop_by_age_sex <- extract_pop_by_age_sex(pred_env, units = units)
     pop_by_broad_age <- get_pop_by_broad_age(pop_by_age_sex)
     pop_by_time <- get_pop_by_time(pop_by_age_sex, code)
-    tfr_by_time <- get_tfr_by_time(pred)
+    tfr_by_time <- extract_tfr_by_time(pred_env)
+    growth_rate <- get_annual_growth_rate(pop_by_time)
+    births <- extract_births(pred_env, units = units)
 
     # cleanup
     ##########
@@ -121,7 +135,9 @@ run_forecast <- function(country, start_year = 2021, end_year = 2100,
                 population_by_age_and_sex = pop_by_age_sex,
                 population_by_broad_age_group = pop_by_broad_age,
                 population_by_time = pop_by_time,
-                tfr_by_time = tfr_by_time
+                tfr_by_time = tfr_by_time,
+                annual_growth_rate = growth_rate,
+                birth_count_rates = births
                 )
            )
 }
@@ -185,13 +201,14 @@ prepare_tfr <- function(tfr, country, un_code, start_year){
     return(tfr_file)
 }
 
-extract_pop_by_age_sex <- function(pred, units = 1000){
+extract_pop_by_age_sex <- function(env, units = 1000){
     age <- age_to_100 <- pop <- NULL # to satisfy CRAN check
     pop_dt_sx <- list()
+    country <- env$prediction$countries$code
     for(sx in c("M", "F")){
         # extract observed pop
-        obs_df <- get.pop.exba(paste0("P", pred$countries$code, "_", sx, "{}"),
-                               pred, observed = TRUE)
+        obs_df <- get.pop.exba(paste0("P", country, "_", sx, "{}"),
+                               env$prediction, observed = TRUE)
         if(units != 1000)
             obs_df <- obs_df*1000 / units
 
@@ -201,7 +218,7 @@ extract_pop_by_age_sex <- function(pred, units = 1000){
                 value.name = paste0("pop", sx), variable.factor = FALSE)
 
         # extract the projected median matrix
-        pred_df <- pred[[paste0("quantiles", sx, "age")]][1, , "0.5",]
+        pred_df <- env$prediction[[paste0("quantiles", sx, "age")]][1, , "0.5",]
         if(units != 1000)
             pred_df <- pred_df*1000 / units
 
@@ -265,7 +282,7 @@ get_pop_by_broad_age <- function(pop_by_age_sex,
 }
 
 get_pop_by_time <- function(pop_by_age_sex, un_code) {
-    age <- un_pop_median <- i.pop <- NULL # to satisfy CRAN check
+    age <- un_pop_median <- i.pop <- i.pop_95l <- i.pop_95u <- NULL # to satisfy CRAN check
     # totals
     dt <- get_pop_by_broad_age(pop_by_age_sex, age_groups = c(0, 150),
                                compute_percent = FALSE)
@@ -300,25 +317,72 @@ get_pop_by_time <- function(pop_by_age_sex, un_code) {
     return(dt)
 }
 
-get_tfr_by_time <- function(pred) {
+extract_tfr_by_time <- function(env) {
+    tfr <- tfr_95l <- tfr_95u <- un_tfr_median <- NULL
     # extract observed and predicted data
-    expression <- paste0("F", pred$countries$code)
-    tfr_data <- c(get.pop.ex(expression, pred, observed = TRUE),
-            get.pop.ex(expression, pred, observed = FALSE)[-1])
+    expression <- paste0("F", env$prediction$countries$code)
+    tfr_data <- c(get.pop.ex(expression, env$prediction, observed = TRUE),
+            get.pop.ex(expression, env$prediction, observed = FALSE)[-1])
     
     # convert to long format
-    tfr_long <- data.table(year = as.integer(names(tfr_data)), tfr_data)
+    tfr_long <- data.table(year = as.integer(names(tfr_data)), tfr = tfr_data)
     
     # extract UN median and PI intervals
     untfr <- get_wpp_indicator_multiple_years("tfr1dt", "tfrproj1dt", 
-                                              un_code = pred$countries$code)
+                                              un_code = env$prediction$countries$code)
     
     # merge together
-    dt <- merge(tfr_long, untfr[, .(year, un_tfr_median = tfr, 
+    dt <- merge(tfr_long, untfr[, list(year, un_tfr_median = tfr, 
                                     un_tfr_95low = tfr_95l, un_tfr_95high = tfr_95u)],
                 all = TRUE, by = "year")
-    return(dt)
+    return(dt[!is.na(un_tfr_median)])
 }
+
+get_annual_growth_rate <- function(pop){
+    age <- year_lag <- pop_lag <- i.pop <- NULL
+    popdt <- copy(pop)[, year_lag := year - 1]
+    popdt[popdt, pop_lag := i.pop, on = c(year_lag = "year", age = "age")]
+    return(popdt[!is.na(pop_lag), list(year, age, growth_rate = log(pop/pop_lag)*100)])
+}
+
+extract_births <- function(env, units = 1000){
+    births <- births_95l <- births_95u <- cbr <- cbr_95l <- cbr_95u <- NULL
+    # extract observed and predicted counts
+    uncode <- env$prediction$countries$code
+    expression <- paste0("B", uncode)
+    birth_count <- c(get.pop.ex(expression, env$prediction, observed = TRUE),
+                  get.pop.ex(expression, env$prediction, observed = FALSE)[-1])
+    if(units != 1000)
+        birth_count <- birth_count*1000 / units
+    
+    # extract observed and predicted rates
+    expression <- paste0("1000 * B", uncode, "/mid.period(P", uncode, ")")
+    birth_rate <- c(get.pop.ex(expression, env$prediction, observed = TRUE),
+                     get.pop.ex(expression, env$prediction, observed = FALSE)[-1])
+    
+    # convert to long format
+    births_long <- data.table(year = as.integer(names(birth_count)), 
+                              births = birth_count, cbr = birth_rate)
+    
+    # extract UN values
+    unbirths <- get_wpp_indicator_multiple_years("births1dt", "birthsproj1dt", package = "wpp2022extra",
+                                              un_code = uncode)
+    uncbr <- get_wpp_indicator_multiple_years("cbr1dt", "cbrproj1dt", package = "wpp2022extra",
+                                              un_code = uncode)
+    # merge together
+    dt <- merge(
+            merge(births_long, 
+                unbirths[, list(year, un_births_median = births, 
+                          un_births_95low = births_95l, un_births_95high = births_95u)],
+                all = TRUE, by = "year"
+                ),
+            uncbr[, list(year, un_cbr_median = cbr, 
+                        un_cbr_95low = cbr_95l, un_cbr_95high = cbr_95u)],
+                all = TRUE, by = "year"
+            )
+    return(dt[!is.na(births)])
+}
+
 
 #' @export
 remove_forecast <- function(forecast)
