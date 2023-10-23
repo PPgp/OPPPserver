@@ -104,7 +104,8 @@ run_forecast <- function(country, start_year = 2021, end_year = 2100,
                             tfr.file = tfr_file
                         ),
                         nr.traj = 1, keep.vital.events = TRUE,
-                        fixed.mx = TRUE
+                        fixed.mx = TRUE,
+                        replace.output = TRUE
                         )
 
     # In order not to copy the pred object every time we need it in a function,
