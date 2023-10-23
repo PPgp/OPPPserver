@@ -5,6 +5,7 @@
 #' @param include_aggregates Logical. If \code{TRUE} the set of countries includes
 #'      aggregated regions, such as continents or other aggregations of countries.
 #'      If \code{FALSE} (default) only countries are returned.
+#' @param sort Logical. If \code{TRUE} results are sorted alphabetically.
 #'
 #' @return Character vector of names of countries and optionally aggregations.
 #' @details The function uses the \code{\link[wpp2022]{UNlocations}} dataset of the
@@ -25,11 +26,11 @@
 #' print(Ecountries2)
 #' "Europe" %in% Ecountries2 # should be TRUE as Europe is included
 #'
-get_wpp_countries <- function(include_aggregates = FALSE) {
+get_wpp_countries <- function(include_aggregates = FALSE, sort = TRUE) {
     locations <- get_wpp("UNlocations")
-    if(include_aggregates)
-        return(locations[, "name"])
-    return(locations[locations$location_type == 4, "name"])
+    locations <- if(include_aggregates) locations[, "name"] else locations[locations$location_type == 4, "name"]
+    if(sort) locations <- sort(locations)
+    return(locations)
 }
 
 #' @title Country-specific WPP population

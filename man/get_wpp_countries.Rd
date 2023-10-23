@@ -4,12 +4,14 @@
 \alias{get_wpp_countries}
 \title{WPP countries}
 \usage{
-get_wpp_countries(include_aggregates = FALSE)
+get_wpp_countries(include_aggregates = FALSE, sort = TRUE)
 }
 \arguments{
 \item{include_aggregates}{Logical. If \code{TRUE} the set of countries includes
 aggregated regions, such as continents or other aggregations of countries.
 If \code{FALSE} (default) only countries are returned.}
+
+\item{sort}{Logical. If \code{TRUE} results are sorted alphabetically.}
 }
 \value{
 Character vector of names of countries and optionally aggregations.
