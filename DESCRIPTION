@@ -8,7 +8,12 @@ Maintainer: Hana Sevcikova <hanas@uw.edu>
 Description: Collection of functions to be used by the UN Online Population Projection Platform. 
 License: GPL-3
 Encoding: UTF-8
-Imports: data.table, wpp2022, wpp2022extra, memoise, cachem
+Imports: 
+    data.table,
+    wpp2022,
+    wpp2022extra (>= 0.0.1),
+    memoise,
+    cachem
 Depends: bayesPop
-Remotes: PPgp/wpp2022, PPgp/wpp2022extra
-RoxygenNote: 7.2.1
+Remotes: PPgp/wpp2022, cimentadaj/wpp2022extra
+RoxygenNote: 7.2.3
