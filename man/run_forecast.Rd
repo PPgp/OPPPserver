@@ -54,6 +54,11 @@ List with elements:
              of the respective quantities
              (columns \code{un_births_median}, \code{un_births_95low}, \code{un_births_95high}, 
              \code{un_cbr_median}, \code{un_cbr_95low}, \code{un_cbr_95high})}
+     \item{death_count_rates}{Data table with the forecast of total deaths (column \code{deaths}),
+             crude death rate (\code{cdr}) and the UN median and 95\% probability intervals 
+             of the respective quantities
+             (columns \code{un_deaths_median}, \code{un_deaths_95low}, \code{un_deaths_95high}, 
+             \code{un_cdr_median}, \code{un_cdr_95low}, \code{un_cdr_95high})}
 }
 }
 \description{

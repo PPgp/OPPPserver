@@ -36,6 +36,11 @@
 #'              of the respective quantities
 #'              (columns \code{un_births_median}, \code{un_births_95low}, \code{un_births_95high}, 
 #'              \code{un_cbr_median}, \code{un_cbr_95low}, \code{un_cbr_95high})}
+#'      \item{death_count_rates}{Data table with the forecast of total deaths (column \code{deaths}),
+#'              crude death rate (\code{cdr}) and the UN median and 95\% probability intervals 
+#'              of the respective quantities
+#'              (columns \code{un_deaths_median}, \code{un_deaths_95low}, \code{un_deaths_95high}, 
+#'              \code{un_cdr_median}, \code{un_cdr_95low}, \code{un_cdr_95high})}
 #' }
 #' @details For now the function only runs when \code{start_year} is 2021 or smaller.
 #'     Note that for now each run of this function creates a new temporary directory.
@@ -121,6 +126,7 @@ run_forecast <- function(country, start_year = 2021, end_year = 2100,
     tfr_by_time <- extract_tfr_by_time(pred_env)
     growth_rate <- get_annual_growth_rate(pop_by_time)
     births <- extract_births(pred_env, units = units)
+    deaths <- extract_deaths(pred_env, units = units)
 
     # cleanup
     ##########
@@ -138,7 +144,8 @@ run_forecast <- function(country, start_year = 2021, end_year = 2100,
                 population_by_time = pop_by_time,
                 tfr_by_time = tfr_by_time,
                 annual_growth_rate = growth_rate,
-                birth_count_rates = births
+                birth_count_rates = births,
+                death_count_rates = deaths
                 )
            )
 }
@@ -252,7 +259,7 @@ extract_pop_by_age_sex <- function(env, units = 1000){
 
 get_pop_by_broad_age <- function(pop_by_age_sex,
                                  age_groups = c(0, 20, 40, 60, 150),
-                                 compute_percent = TRUE){
+                                 compute_percent = TRUE, oag_label = NULL){
     age <- pop <- year <- popM <- popF <- age_group <- sum_pop <- pop_percent <- NULL # to satisfy CRAN check
 
     # sum population over sexes
@@ -274,7 +281,7 @@ get_pop_by_broad_age <- function(pop_by_age_sex,
              age := paste(age_groups[age_group],
                           age_groups[age_group + 1] - 1, sep = "-")]
     dt_broad[age_group == length(age_groups) - 1,  # open age group
-             age := paste0(age_groups[age_group], "+")
+             age := if(is.null(oag_label)) paste0(age_groups[age_group], "+") else oag_label
              ][, age_group := NULL]
 
     # re-order columns
@@ -286,7 +293,7 @@ get_pop_by_time <- function(pop_by_age_sex, un_code) {
     age <- un_pop_median <- i.pop <- i.pop_95l <- i.pop_95u <- NULL # to satisfy CRAN check
     # totals
     dt <- get_pop_by_broad_age(pop_by_age_sex, age_groups = c(0, 150),
-                               compute_percent = FALSE)
+                               compute_percent = FALSE, oag_label = "Total")
     # standard broad age groups
     dt <- rbind(dt, get_pop_by_broad_age(pop_by_age_sex,
                                          compute_percent = FALSE))
@@ -298,7 +305,8 @@ get_pop_by_time <- function(pop_by_age_sex, un_code) {
     # Add UN prediction median
     unpop <- get_wpp_pop_by_age_multiple_years(un_code)
     unpop_groups <- get_pop_by_broad_age(unpop, age_groups = c(0, 150),
-                                         compute_percent = FALSE)
+                                         compute_percent = FALSE, 
+                                         oag_label = "Total")
     unpop_groups <- rbind(unpop_groups,
                           get_pop_by_broad_age(unpop, compute_percent = FALSE))
     unpop_groups <- rbind(unpop_groups,
@@ -308,13 +316,13 @@ get_pop_by_time <- function(pop_by_age_sex, un_code) {
     dt[unpop_groups, un_pop_median := i.pop, on = c("year", "age")]
 
     # add prediction intervals for total pop
-    untotpop <- get_wpp_pop_multiple_years(un_code)[, age := "0+"]
-    # merge with dt for the 0+ age group
+    untotpop <- get_wpp_pop_multiple_years(un_code)[, age := "Total"]
+    # merge with dt for the Total age group
     dt[untotpop, `:=`(un_pop_95low = i.pop_95l, un_pop_95high = i.pop_95u), 
        on = c("year", "age")]
     
-    # TODO: add intervals for broader age groups 
-    # (need to find them on the UN site and put somewhere)
+    # TODO: add intervals for broader age groups (will be provided by Patrick)
+
     return(dt)
 }
 
@@ -357,7 +365,7 @@ extract_births <- function(env, units = 1000){
         birth_count <- birth_count*1000 / units
     
     # extract observed and predicted rates
-    expression <- paste0("1000 * B", uncode, "/mid.period(P", uncode, ")")
+    expression <- paste0("1000 * B", uncode, "/mid.period1(P", uncode, ")")
     birth_rate <- c(get.pop.ex(expression, env$prediction, observed = TRUE),
                      get.pop.ex(expression, env$prediction, observed = FALSE)[-1])
     
@@ -383,6 +391,45 @@ extract_births <- function(env, units = 1000){
             )
     return(dt[!is.na(births)])
 }
+
+extract_deaths <- function(env, units = 1000){
+    deaths <- deaths_95l <- deaths_95u <- cbr <- cbr_95l <- cbr_95u <- NULL
+    # extract observed and predicted counts
+    uncode <- env$prediction$countries$code
+    expression <- paste0("D", uncode)
+    death_count <- c(get.pop.ex(expression, env$prediction, observed = TRUE),
+                     get.pop.ex(expression, env$prediction, observed = FALSE)[-1])
+    if(units != 1000)
+        death_count <- death_count*1000 / units
+    
+    # extract observed and predicted rates
+    expression <- paste0("1000 * D", uncode, "/mid.period1(P", uncode, ")")
+    death_rate <- c(get.pop.ex(expression, env$prediction, observed = TRUE),
+                    get.pop.ex(expression, env$prediction, observed = FALSE)[-1])
+    
+    # convert to long format
+    deaths_long <- data.table(year = as.integer(names(death_count)), 
+                              deaths = death_count, cdr = death_rate)
+    
+    # extract UN values
+    undeaths <- get_wpp_indicator_multiple_years("deaths1dt", "deathsproj1dt", package = "wpp2022extra",
+                                                 un_code = uncode)
+    uncdr <- get_wpp_indicator_multiple_years("cdr1dt", "cdrproj1dt", package = "wpp2022extra",
+                                              un_code = uncode)
+    # merge together
+    dt <- merge(
+        merge(deaths_long, 
+              undeaths[, list(year, un_deaths_median = deaths, 
+                              un_deaths_95low = deaths_95l, un_deaths_95high = deaths_95u)],
+              all = TRUE, by = "year"
+        ),
+        uncdr[, list(year, un_cdr_median = cdr, 
+                     un_cdr_95low = cdr_95l, un_cdr_95high = cdr_95u)],
+        all = TRUE, by = "year"
+    )
+    return(dt[!is.na(deaths)])
+}
+
 
 
 #' @export
