@@ -31,16 +31,31 @@
 #'      \item{annual_growth_rate}{Data table with the forecast of annual growth rate as a percentage,
 #'              computed as \eqn{log(P_t/P_{t-1})*100}, for the same age groups as in \code{population_by_time}
 #'              (columns \code{year}, \code{age}, \code{growth_rate}).}
-#'      \item{birth_count_rates}{Data table with the forecast of total births (column \code{births}),
+#'      \item{births_counts_rates}{Data table with the forecast of total births (column \code{births}),
 #'              crude birth rate (\code{cbr}) and the UN median and 95\% probability intervals 
 #'              of the respective quantities
 #'              (columns \code{un_births_median}, \code{un_births_95low}, \code{un_births_95high}, 
-#'              \code{un_cbr_median}, \code{un_cbr_95low}, \code{un_cbr_95high})}
-#'      \item{death_count_rates}{Data table with the forecast of total deaths (column \code{deaths}),
+#'              \code{un_cbr_median}, \code{un_cbr_95low}, \code{un_cbr_95high}).}
+#'      \item{deaths_counts_rates}{Data table with the forecast of total deaths (column \code{deaths}),
 #'              crude death rate (\code{cdr}) and the UN median and 95\% probability intervals 
 #'              of the respective quantities
 #'              (columns \code{un_deaths_median}, \code{un_deaths_95low}, \code{un_deaths_95high}, 
-#'              \code{un_cdr_median}, \code{un_cdr_95low}, \code{un_cdr_95high})}
+#'              \code{un_cdr_median}, \code{un_cdr_95low}, \code{un_cdr_95high}).}
+#'      \item{yadr}{Data table with the forecast of the young age dependency ratio [(0-19)/(20-64)] (column \code{yadr})
+#'              and the UN median and 95\% probability intervals of the same quantity (columns 
+#'              \code{un_yadr_median}, \code{un_yadr_95low}, \code{un_yadr_95high}).}
+#'      \item{oadr}{Data table with the forecast of the old age dependency ratio [65+/(20-64)] (column \code{oadr})
+#'              and the UN median and 95\% probability intervals of the same quantity (columns 
+#'              \code{un_oadr_median}, \code{un_oadr_95low}, \code{un_oadr_95high}).}
+#'      \item{pop_aging_and_pop_size}{Data table with the forecast of percent population of 65+ (column \code{percent65}),
+#'              total population (column \code{pop}) and the UN median of the same 
+#'              two quantities (columns \code{un_pop_median}, \code{un_percen65}).}
+#'      \item{cdr_by_e0}{Data table with the forecast of the crude death rate (\code{cdr}), life expecancy at birth
+#'              (\code{e0}) and the UN median of the same two quantities (columns \code{un_cdr_median}, \code{un_e0_median}).}
+#'      \item{cbr_by_tfr}{Data table with the forecast of the crude birth rate (\code{cbr}), total fertility rate
+#'              (\code{tfr}) and the UN median of the same two quantities (columns \code{un_cbr_median}, \code{un_tfr_median}).}
+
+#'      
 #' }
 #' @details For now the function only runs when \code{start_year} is 2021 or smaller.
 #'     Note that for now each run of this function creates a new temporary directory.
@@ -58,7 +73,7 @@
 #' par(mfrow = c(1,2))
 #' 
 #' # extract total population
-#' respop <- forecast$population_by_time[age == "0+"]
+#' respop <- forecast$population_by_time[age == "Total"]
 #'
 #' # the scenario population should be larger than UN starting in 1954
 #' plot(respop$year, respop$pop, type = "l", col = "red",
@@ -127,6 +142,11 @@ run_forecast <- function(country, start_year = 2021, end_year = 2100,
     growth_rate <- get_annual_growth_rate(pop_by_time)
     births <- extract_births(pred_env, units = units)
     deaths <- extract_deaths(pred_env, units = units)
+    yadr <- extract_yadr(pred_env)
+    oadr <- extract_oadr(pred_env)
+    pop_aging_vs_size <- get_pop_aging_and_size(pop_by_time)
+    cdr_vs_e0 <- extract_e0_get_cdr(pred_env, deaths)
+    cbr_vs_tfr <- get_tfr_cbr(tfr_by_time, births)
 
     # cleanup
     ##########
@@ -144,8 +164,13 @@ run_forecast <- function(country, start_year = 2021, end_year = 2100,
                 population_by_time = pop_by_time,
                 tfr_by_time = tfr_by_time,
                 annual_growth_rate = growth_rate,
-                birth_count_rates = births,
-                death_count_rates = deaths
+                births_counts_rates = births,
+                deaths_counts_rates = deaths,
+                yadr = yadr,
+                oadr = oadr,
+                pop_aging_and_pop_size = pop_aging_vs_size,
+                cdr_by_e0 = cdr_vs_e0,
+                cbr_by_tfr = cbr_vs_tfr
                 )
            )
 }
@@ -338,7 +363,7 @@ extract_tfr_by_time <- function(env) {
     
     # extract UN median and PI intervals
     untfr <- get_wpp_indicator_multiple_years("tfr1dt", "tfrproj1dt", 
-                                              un_code = env$prediction$countries$code)
+                    un_code = env$prediction$countries$code)[year <= tfr_long[, max(year)]]
     
     # merge together
     dt <- merge(tfr_long, untfr[, list(year, un_tfr_median = tfr, 
@@ -393,7 +418,7 @@ extract_births <- function(env, units = 1000){
 }
 
 extract_deaths <- function(env, units = 1000){
-    deaths <- deaths_95l <- deaths_95u <- cbr <- cbr_95l <- cbr_95u <- NULL
+    deaths <- deaths_95l <- deaths_95u <- cdr <- cdr_95l <- cdr_95u <- NULL
     # extract observed and predicted counts
     uncode <- env$prediction$countries$code
     expression <- paste0("D", uncode)
@@ -430,7 +455,103 @@ extract_deaths <- function(env, units = 1000){
     return(dt[!is.na(deaths)])
 }
 
+extract_yadr <- function(env){
+    # young age dependency ratio
+    age <- pop <- yadr <- young <- adult <- un_yadr_median <- NULL
 
+    uncode <- env$prediction$countries$code
+    expression <- paste0("P", uncode, "[0:19]/P", uncode, "[20:64]")
+    dep_ratio <- c(get.pop.ex(expression, env$prediction, observed = TRUE),
+                     get.pop.ex(expression, env$prediction, observed = FALSE)[-1])
+    # convert to long format
+    dep_ratio_long <- data.table(year = as.integer(names(dep_ratio)), yadr = dep_ratio)
+    
+    # extract UN median and PI intervals
+    # TODO: get the UN values from Patrick 
+    # (for now we'll compute it from the median pop)
+    unpop <- get_wpp_pop_by_age_multiple_years(un_code = env$prediction$countries$code)
+    unyadr <- merge(unpop[age %in% 0:19, list(young = sum(pop)), by = "year"],
+                    unpop[age %in% 20:64, list(adult = sum(pop)), by = "year"],
+                    by = "year")[, yadr := young/adult]
+
+    # merge together
+    dt <- merge(dep_ratio_long, unyadr[, list(year, un_yadr_median = yadr, 
+                                       un_yadr_95low = NA, un_yadr_95high = NA)],
+                all = TRUE, by = "year")[year <= dep_ratio_long[, max(year)]]
+    return(dt[!is.na(un_yadr_median)])
+}
+
+extract_oadr <- function(env){
+    # old age dependency ratio
+    age <- pop <- oadr <- old <- adult <- un_oadr_median <- NULL
+
+    uncode <- env$prediction$countries$code
+    expression <- paste0("P", uncode, "[65:130]/P", uncode, "[20:64]")
+    dep_ratio <- c(get.pop.ex(expression, env$prediction, observed = TRUE),
+                   get.pop.ex(expression, env$prediction, observed = FALSE)[-1])
+    # convert to long format
+    dep_ratio_long <- data.table(year = as.integer(names(dep_ratio)), oadr = dep_ratio)
+    
+    # extract UN median and PI intervals
+    # TODO: get the UN values from Patrick 
+    # (for now we'll compute it from the median pop)
+    unpop <- get_wpp_pop_by_age_multiple_years(un_code = env$prediction$countries$code)
+    unoadr <- merge(unpop[age %in% 65:130, list(old = sum(pop)), by = "year"],
+                    unpop[age %in% 20:64, list(adult = sum(pop)), by = "year"],
+                    by = "year")[, oadr := old/adult]
+    
+    # merge together
+    dt <- merge(dep_ratio_long, unoadr[, list(year, un_oadr_median = oadr, 
+                                             un_oadr_95low = NA, un_oadr_95high = NA)],
+                all = TRUE, by = "year")[year <= dep_ratio_long[, max(year)]]
+    return(dt[!is.na(un_oadr_median)])
+}
+
+get_pop_aging_and_size <- function(pop){
+    # get percent 65+ and total population
+    age <- percent65 <- `65+` <- Total <- un_percent65 <- NULL
+    
+    forecast <- dcast(pop[age %in% c("Total", "65+")], 
+                      year ~ age, value.var = "pop")[, percent65 := `65+`/Total * 100]
+
+    un <- dcast(pop[age %in% c("Total", "65+")], 
+                year ~ age, value.var = "un_pop_median")[, un_percent65 := `65+`/Total * 100]
+    
+    dt <- merge(forecast[, list(year, pop = Total, percent65)],
+                un[, list(year, un_pop_median = Total, un_percent65)],
+                by = "year", all = TRUE)
+    return(dt)
+}
+
+extract_e0_get_cdr <- function(env, deaths){
+    cdr <- un_cdr_median <- un_e0_median <- i.e0B <- NULL
+    
+    # extract e0 and get cdr from the deaths table
+    # TODO: Should e0 be a simple average over the two sexes?
+    uncode <- env$prediction$countries$code
+    expression <- paste0("(E", uncode, "_F[0] + E", uncode, "_M[0]) / 2")
+    e0_values <- c(get.pop.ex(expression, env$prediction, observed = TRUE),
+                   get.pop.ex(expression, env$prediction, observed = FALSE)[-1])
+    
+    # convert to long format
+    e0_long <- data.table(year = as.integer(names(e0_values)), e0 = e0_values)
+    
+    # get UN e0
+    une0 <- get_wpp_indicator_multiple_years("e01dt", "e0proj1dt", un_code = uncode)
+    
+    # merge together
+    dt <- merge(e0_long, deaths[, list(year, cdr, un_cdr_median)], by = "year")
+    dt[une0, un_e0_median := i.e0B, on = "year"]
+    return(dt)
+}
+
+get_tfr_cbr <- function(tfr, births){
+    un_tfr_median <- un_cbr_median <- cbr <- NULL
+    dt <- merge(tfr[, list(year, tfr, un_tfr_median)],
+                births[, list(year, cbr, un_cbr_median)],
+                by = "year")
+    return(dt)
+}
 
 #' @export
 remove_forecast <- function(forecast)

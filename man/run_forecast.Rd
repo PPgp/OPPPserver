@@ -49,16 +49,30 @@ List with elements:
      \item{annual_growth_rate}{Data table with the forecast of annual growth rate as a percentage,
              computed as \eqn{log(P_t/P_{t-1})*100}, for the same age groups as in \code{population_by_time}
              (columns \code{year}, \code{age}, \code{growth_rate}).}
-     \item{birth_count_rates}{Data table with the forecast of total births (column \code{births}),
+     \item{births_counts_rates}{Data table with the forecast of total births (column \code{births}),
              crude birth rate (\code{cbr}) and the UN median and 95\% probability intervals 
              of the respective quantities
              (columns \code{un_births_median}, \code{un_births_95low}, \code{un_births_95high}, 
-             \code{un_cbr_median}, \code{un_cbr_95low}, \code{un_cbr_95high})}
-     \item{death_count_rates}{Data table with the forecast of total deaths (column \code{deaths}),
+             \code{un_cbr_median}, \code{un_cbr_95low}, \code{un_cbr_95high}).}
+     \item{deaths_counts_rates}{Data table with the forecast of total deaths (column \code{deaths}),
              crude death rate (\code{cdr}) and the UN median and 95\% probability intervals 
              of the respective quantities
              (columns \code{un_deaths_median}, \code{un_deaths_95low}, \code{un_deaths_95high}, 
-             \code{un_cdr_median}, \code{un_cdr_95low}, \code{un_cdr_95high})}
+             \code{un_cdr_median}, \code{un_cdr_95low}, \code{un_cdr_95high}).}
+     \item{yadr}{Data table with the forecast of the young age dependency ratio [(0-19)/(20-64)] (column \code{yadr})
+             and the UN median and 95\% probability intervals of the same quantity (columns 
+             \code{un_yadr_median}, \code{un_yadr_95low}, \code{un_yadr_95high}).}
+     \item{oadr}{Data table with the forecast of the old age dependency ratio [65+/(20-64)] (column \code{oadr})
+             and the UN median and 95\% probability intervals of the same quantity (columns 
+             \code{un_oadr_median}, \code{un_oadr_95low}, \code{un_oadr_95high}).}
+     \item{pop_aging_and_pop_size}{Data table with the forecast of percent population of 65+ (column \code{percent65}),
+             total population (column \code{pop}) and the UN median of the same 
+             two quantities (columns \code{un_pop_median}, \code{un_percen65}).}
+     \item{cdr_by_e0}{Data table with the forecast of the crude death rate (\code{cdr}), life expecancy at birth
+             (\code{e0}) and the UN median of the same two quantities (columns \code{un_cdr_median}, \code{un_e0_median}).}
+     \item{cbr_by_tfr}{Data table with the forecast of the crude birth rate (\code{cbr}), total fertility rate
+             (\code{tfr}) and the UN median of the same two quantities (columns \code{un_cbr_median}, \code{un_tfr_median}).}
+     
 }
 }
 \description{
@@ -81,7 +95,7 @@ forecast <- run_forecast("Niger", start_year = 2021, tfr = my_tfr)
 par(mfrow = c(1,2))
 
 # extract total population
-respop <- forecast$population_by_time[age == "0+"]
+respop <- forecast$population_by_time[age == "Total"]
 
 # the scenario population should be larger than UN starting in 1954
 plot(respop$year, respop$pop, type = "l", col = "red",
