@@ -15,5 +15,5 @@ Imports:
     memoise,
     cachem
 Depends: bayesPop
-Remotes: PPgp/wpp2022, cimentadaj/wpp2022extra
+Remotes: PPgp/wpp2022, PPgp/wpp2022extra
 RoxygenNote: 7.2.3
