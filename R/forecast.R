@@ -491,7 +491,7 @@ extract_yadr <- function(env){
 
     # merge together
     dt <- merge(dep_ratio_long, unyadr[, list(year, un_yadr_median = yadr, 
-                                       un_yadr_95low = NA, un_yadr_95high = NA)],
+                                       un_yadr_95low = as.numeric(NA), un_yadr_95high = as.numeric(NA))],
                 all = TRUE, by = "year")[year <= dep_ratio_long[, max(year)]]
     return(dt[!is.na(un_yadr_median)])
 }
@@ -517,7 +517,7 @@ extract_oadr <- function(env){
     
     # merge together
     dt <- merge(dep_ratio_long, unoadr[, list(year, un_oadr_median = oadr, 
-                                             un_oadr_95low = NA, un_oadr_95high = NA)],
+                                             un_oadr_95low = as.numeric(NA), un_oadr_95high = as.numeric(NA))],
                 all = TRUE, by = "year")[year <= dep_ratio_long[, max(year)]]
     return(dt[!is.na(un_oadr_median)])
 }
