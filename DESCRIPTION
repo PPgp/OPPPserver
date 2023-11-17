@@ -11,7 +11,7 @@ Encoding: UTF-8
 Imports: 
     data.table,
     wpp2022,
-    wpp2022extra (>= 0.0.1),
+    wpp2022extra (>= 0.0-2),
     memoise,
     cachem
 Depends: bayesPop
