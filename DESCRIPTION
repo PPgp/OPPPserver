@@ -1,8 +1,8 @@
 Package: OPPPserver
 Type: Package
 Title: UN Online Population Projection Platform Server Functions
-Version: 0.0-6.9001
-Date: 2023-11-17
+Version: 0.0-6.9002
+Date: 2023-12-08
 Author: Hana Sevcikova
 Maintainer: Hana Sevcikova <hanas@uw.edu>
 Description: Collection of functions to be used by the UN Online Population Projection Platform. 
@@ -11,7 +11,7 @@ Encoding: UTF-8
 Imports: 
     data.table,
     wpp2022,
-    wpp2022extra (>= 0.0-2),
+    wpp2022extra (>= 0.0-2.9002),
     memoise,
     cachem
 Depends: bayesPop

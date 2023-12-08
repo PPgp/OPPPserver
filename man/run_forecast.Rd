@@ -42,6 +42,8 @@ a temporary directory is used which is removed after the simulation is finished.
 function of \pkg{bayesPop}.}
 
 \item{forecast}{List returned by \code{run_forecast}}
+
+\item{verbose}{Logical that switches log messages on and off.}
 }
 \value{
 List with elements:

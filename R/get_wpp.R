@@ -122,7 +122,7 @@ get_country_code <- function(country){
     return(locations[locations$name == country, "country_code"])
 }
 
-get_wpp_indicator_multiple_years <- function(indicator_est, indicator_proj, un_code, end_year = NULL, ...){
+get_wpp_indicator_multiple_years <- function(indicator_est, indicator_proj = NULL, un_code, end_year = NULL, ...){
     country_code <- NULL # to satisfy CRAN check
     all_wpp <- get_wpp(indicator_est, ...)[country_code == un_code] # load observed data
     if(!is.null(indicator_proj) && (is.null(end_year) || end_year > all_wpp[, max(year)])) # add projected data if needed
