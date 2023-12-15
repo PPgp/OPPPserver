@@ -561,9 +561,9 @@ extract_e0_get_cdr <- function(env, deaths){
     cdr <- un_cdr_median <- un_e0_median <- i.e0B <- NULL
     
     # extract e0 and get cdr from the deaths table
-    # TODO: Should e0 be a simple average over the two sexes?
     uncode <- env$prediction$countries$code
-    expression <- paste0("(E", uncode, "_F[0] + E", uncode, "_M[0]) / 2")
+    # total e0 (bayesPop aggregates over sexes using weighted mx)
+    expression <- paste0("E", uncode, "[0]")
     e0_values <- c(get.pop.ex(expression, env$prediction, observed = TRUE),
                    get.pop.ex(expression, env$prediction, observed = FALSE)[-1])
     
