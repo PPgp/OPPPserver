@@ -1,7 +1,7 @@
 Package: OPPPserver
 Type: Package
 Title: UN Online Population Projection Platform Server Functions
-Version: 0.0-6.9003
+Version: 0.0-6.9004
 Date: 2023-12-15
 Author: Hana Sevcikova
 Maintainer: Hana Sevcikova <hanas@uw.edu>

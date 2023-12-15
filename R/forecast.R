@@ -500,7 +500,7 @@ extract_yadr <- function(env){
                                                un_code = uncode)[age == "0-19 / 20-64"]
     # combine the UN datasets
     unyadr_all <- rbind(unyadr[year < min(unyadr_proj$year), list(year, yadr)],
-                        unyadr_proj[, list(year, yadr, yadr_95l, yadr_95u)],
+                        unyadr_proj[, list(year, yadr = yadr/100, yadr_95l = yadr_95l/100, yadr_95u = yadr_95u/100)],
                         fill = TRUE)
 
     # merge everything together
@@ -531,7 +531,7 @@ extract_oadr <- function(env){
                                                un_code = uncode)[age == "65+ / 20-64"]
     # combine the UN datasets
     unoadr_all <- rbind(unoadr[year < min(unoadr_proj$year), list(year, oadr)],
-                        unoadr_proj[, list(year, oadr, oadr_95l, oadr_95u)],
+                        unoadr_proj[, list(year, oadr = oadr/100, oadr_95l = oadr_95l/100, oadr_95u = oadr_95u/100)],
                         fill = TRUE)
     
     # merge together
