@@ -126,7 +126,8 @@ run_forecast <- function(country, start_year = 2023, end_year = 2100,
                          pop = NULL, tfr = NULL, units = 1000, output_dir = NULL, ...){
 
     code <- get_country_code(country)
-
+    if(length(code) == 0) stop("Country ", country, " not found.")
+    
     # create input files for pop.predict
     pop_files <- prepare_pop(pop, code, start_year)
     tfr_file <- prepare_tfr(tfr, country, code, start_year)

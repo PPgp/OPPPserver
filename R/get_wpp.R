@@ -119,7 +119,8 @@ get_wpp <- memoise::memoise(function(dataset_name, package = "wpp2022"){
 get_country_code <- function(country){
     # return the UN code for given country
     locations <- get_wpp("UNlocations")
-    return(locations[locations$name == country, "country_code"])
+    column <- if(is.numeric(country)) "country_code" else "name"
+    return(locations[locations[[column]] == country, "country_code"])
 }
 
 get_wpp_indicator_multiple_years <- function(indicator_est, indicator_proj = NULL, un_code, end_year = NULL, ...){
