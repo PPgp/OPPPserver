@@ -43,10 +43,10 @@
 #'              of the respective quantities
 #'              (columns \code{un_deaths_median}, \code{un_deaths_95low}, \code{un_deaths_95high}, 
 #'              \code{un_cdr_median}, \code{un_cdr_95low}, \code{un_cdr_95high}).}
-#'      \item{yadr}{Data table with the forecast of the young age dependency ratio [(0-19)/(20-64)] (column \code{yadr})
+#'      \item{yadr}{Data table with the forecast of the young age dependency ratio [(0-19)/(20-64) * 100] (column \code{yadr})
 #'              and the UN median and 95\% probability intervals of the same quantity (columns 
 #'              \code{un_yadr_median}, \code{un_yadr_95low}, \code{un_yadr_95high}).}
-#'      \item{oadr}{Data table with the forecast of the old age dependency ratio [65+/(20-64)] (column \code{oadr})
+#'      \item{oadr}{Data table with the forecast of the old age dependency ratio [65+/(20-64) * 100] (column \code{oadr})
 #'              and the UN median and 95\% probability intervals of the same quantity (columns 
 #'              \code{un_oadr_median}, \code{un_oadr_95low}, \code{un_oadr_95high}).}
 #'      \item{pop_aging_and_pop_size}{Data table with the forecast of percent population of 65+ (column \code{percent65}),
@@ -485,7 +485,7 @@ extract_yadr <- function(env){
     age <- pop <- yadr <- young <- adult <- un_yadr_median <- yadr_95l <- yadr_95u <- NULL
 
     uncode <- env$prediction$countries$code
-    expression <- paste0("P", uncode, "[0:19]/P", uncode, "[20:64]")
+    expression <- paste0("P", uncode, "[0:19]/P", uncode, "[20:64] * 100")
     dep_ratio <- c(get.pop.ex(expression, env$prediction, observed = TRUE),
                      get.pop.ex(expression, env$prediction, observed = FALSE)[-1])
     # convert to long format
@@ -495,13 +495,13 @@ extract_yadr <- function(env){
     unpop <- get_wpp_pop_by_age_multiple_years(un_code = env$prediction$countries$code)
     unyadr <- merge(unpop[age %in% 0:19, list(young = sum(pop)), by = "year"],
                     unpop[age %in% 20:64, list(adult = sum(pop)), by = "year"],
-                    by = "year")[, yadr := young/adult]
+                    by = "year")[, yadr := young/adult * 100]
     # UN projections
     unyadr_proj <- get_wpp_indicator_multiple_years("yadrproj1dt", package = "wpp2022extra",
                                                un_code = uncode)[age == "0-19 / 20-64"]
     # combine the UN datasets
     unyadr_all <- rbind(unyadr[year < min(unyadr_proj$year), list(year, yadr)],
-                        unyadr_proj[, list(year, yadr = yadr/100, yadr_95l = yadr_95l/100, yadr_95u = yadr_95u/100)],
+                        unyadr_proj[, list(year, yadr = yadr, yadr_95l = yadr_95l, yadr_95u = yadr_95u)],
                         fill = TRUE)
 
     # merge everything together
@@ -516,7 +516,7 @@ extract_oadr <- function(env){
     age <- pop <- oadr <- old <- adult <- un_oadr_median <- oadr_95l <- oadr_95u <- NULL
 
     uncode <- env$prediction$countries$code
-    expression <- paste0("P", uncode, "[65:130]/P", uncode, "[20:64]")
+    expression <- paste0("P", uncode, "[65:130]/P", uncode, "[20:64] * 100")
     dep_ratio <- c(get.pop.ex(expression, env$prediction, observed = TRUE),
                    get.pop.ex(expression, env$prediction, observed = FALSE)[-1])
     # convert to long format
@@ -526,13 +526,13 @@ extract_oadr <- function(env){
     unpop <- get_wpp_pop_by_age_multiple_years(un_code = env$prediction$countries$code)
     unoadr <- merge(unpop[age %in% 65:130, list(old = sum(pop)), by = "year"],
                     unpop[age %in% 20:64, list(adult = sum(pop)), by = "year"],
-                    by = "year")[, oadr := old/adult]
+                    by = "year")[, oadr := old/adult * 100]
     # UN projections
     unoadr_proj <- get_wpp_indicator_multiple_years("oadrproj1dt", package = "wpp2022extra",
                                                un_code = uncode)[age == "65+ / 20-64"]
     # combine the UN datasets
     unoadr_all <- rbind(unoadr[year < min(unoadr_proj$year), list(year, oadr)],
-                        unoadr_proj[, list(year, oadr = oadr/100, oadr_95l = oadr_95l/100, oadr_95u = oadr_95u/100)],
+                        unoadr_proj[, list(year, oadr = oadr, oadr_95l = oadr_95l, oadr_95u = oadr_95u)],
                         fill = TRUE)
     
     # merge together
@@ -598,4 +598,37 @@ remove_forecast <- function(forecast, verbose = TRUE){
         if(verbose) cat("\nPrediction directory", forecast$prediction$base.directory, "removed.\n")
     } else 
         if(verbose) cat("\nNothing to remove.\n")
+}
+
+#' @title Compute Targeted Measure 
+#' @description Helper function to obtain targeted measure, interpolated between start and end year.
+#' @param target Targeted value at \code{end_year}.
+#' @param dt Data table containing values to be modified by the interpolated values. It is expected to 
+#'      have a column "year" and another column containing the actual measure. Its name must correspond
+#'      to the \code{measure} argument, by default "tfr".
+#' @param start_year Year to start the interpolation.
+#' @param end_year Year at which the target value is to be reached.
+#' @param measure Name of the column to be interpolated.
+#' 
+#' @examples
+#' # Change the TFR of Niger to reach 4.0 at 2100, starting from 2023
+#' my_tfr <- get_wpp_tfr("Niger")
+#' my_tfr_mod <- get_targeted_measure(4, my_tfr, start_year = 2023)
+#' 
+#' # plot the difference
+#' plot(my_tfr$year, my_tfr$tfr, type = "l", xlab = "", ylab = "TFR", main = "Niger")
+#' lines(my_tfr_mod$year, my_tfr_mod$tfr, col = "red")
+#' 
+#' @export
+#' 
+get_targeted_measure <- function(target, dt, start_year = NULL, end_year = NULL, measure = "tfr"){
+    if(is.null(start_year)) start_year <- min(dt$year)
+    if(is.null(end_year)) end_year <- max(dt$year)
+    dtres <- dt[order(dt$year)]
+    index <- which(dtres$year >= start_year & dtres$year <= end_year)
+    interpolated_values <- approx(x = c(start_year, end_year), 
+                                  y = c(dtres[index[1], measure, with = FALSE], target),
+                                  xout = unlist(dtres[index, list(year)]))
+    dtres[index, measure] <- interpolated_values$y
+    return(dtres)
 }

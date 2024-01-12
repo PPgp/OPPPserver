@@ -72,10 +72,10 @@ List with elements:
              of the respective quantities
              (columns \code{un_deaths_median}, \code{un_deaths_95low}, \code{un_deaths_95high}, 
              \code{un_cdr_median}, \code{un_cdr_95low}, \code{un_cdr_95high}).}
-     \item{yadr}{Data table with the forecast of the young age dependency ratio [(0-19)/(20-64)] (column \code{yadr})
+     \item{yadr}{Data table with the forecast of the young age dependency ratio [(0-19)/(20-64) * 100] (column \code{yadr})
              and the UN median and 95\% probability intervals of the same quantity (columns 
              \code{un_yadr_median}, \code{un_yadr_95low}, \code{un_yadr_95high}).}
-     \item{oadr}{Data table with the forecast of the old age dependency ratio [65+/(20-64)] (column \code{oadr})
+     \item{oadr}{Data table with the forecast of the old age dependency ratio [65+/(20-64) * 100] (column \code{oadr})
              and the UN median and 95\% probability intervals of the same quantity (columns 
              \code{un_oadr_median}, \code{un_oadr_95low}, \code{un_oadr_95high}).}
      \item{pop_aging_and_pop_size}{Data table with the forecast of percent population of 65+ (column \code{percent65}),
