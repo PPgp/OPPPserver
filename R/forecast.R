@@ -43,10 +43,10 @@
 #'              of the respective quantities
 #'              (columns \code{un_deaths_median}, \code{un_deaths_95low}, \code{un_deaths_95high}, 
 #'              \code{un_cdr_median}, \code{un_cdr_95low}, \code{un_cdr_95high}).}
-#'      \item{yadr}{Data table with the forecast of the young age dependency ratio [(0-19)/(20-64)] (column \code{yadr})
+#'      \item{yadr}{Data table with the forecast of the young age dependency ratio [(0-19)/(20-64) * 100] (column \code{yadr})
 #'              and the UN median and 95\% probability intervals of the same quantity (columns 
 #'              \code{un_yadr_median}, \code{un_yadr_95low}, \code{un_yadr_95high}).}
-#'      \item{oadr}{Data table with the forecast of the old age dependency ratio [65+/(20-64)] (column \code{oadr})
+#'      \item{oadr}{Data table with the forecast of the old age dependency ratio [65+/(20-64) * 100] (column \code{oadr})
 #'              and the UN median and 95\% probability intervals of the same quantity (columns 
 #'              \code{un_oadr_median}, \code{un_oadr_95low}, \code{un_oadr_95high}).}
 #'      \item{pop_aging_and_pop_size}{Data table with the forecast of percent population of 65+ (column \code{percent65}),
@@ -126,7 +126,8 @@ run_forecast <- function(country, start_year = 2023, end_year = 2100,
                          pop = NULL, tfr = NULL, units = 1000, output_dir = NULL, ...){
 
     code <- get_country_code(country)
-
+    if(length(code) == 0) stop("Country ", country, " not found.")
+    
     # create input files for pop.predict
     pop_files <- prepare_pop(pop, code, start_year)
     tfr_file <- prepare_tfr(tfr, country, code, start_year)
@@ -361,7 +362,16 @@ get_pop_by_time <- function(pop_by_age_sex, un_code) {
     dt[untotpop, `:=`(un_pop_95low = i.pop_95l, un_pop_95high = i.pop_95u), 
        on = c("year", "age")]
     
-    # TODO: add intervals for broader age groups (will be provided by Patrick)
+    # add UN PIs
+    unpop_pi <- get_wpp_indicator_multiple_years("popprojAgeGrp1dt", package = "wpp2022extra",
+                                                 un_code = un_code)
+    # rename 60-99 -> 60+ and  65-99 -> 65+
+    # TODO: Clarify with Patrick if these categories indeed match
+    # TODO: There are no 20-39 and 40-59 categories
+    unpop_pi[age == "60-99", age := "60+"]
+    unpop_pi[age == "65-99", age := "65+"]
+    dt[unpop_pi, `:=`(un_pop_median = i.pop, un_pop_95low = i.pop_95l, un_pop_95high = i.pop_95u), 
+       on = c("year", "age")]
 
     return(dt)
 }
@@ -472,52 +482,62 @@ extract_deaths <- function(env, units = 1000){
 
 extract_yadr <- function(env){
     # young age dependency ratio
-    age <- pop <- yadr <- young <- adult <- un_yadr_median <- NULL
+    age <- pop <- yadr <- young <- adult <- un_yadr_median <- yadr_95l <- yadr_95u <- NULL
 
     uncode <- env$prediction$countries$code
-    expression <- paste0("P", uncode, "[0:19]/P", uncode, "[20:64]")
+    expression <- paste0("P", uncode, "[0:19]/P", uncode, "[20:64] * 100")
     dep_ratio <- c(get.pop.ex(expression, env$prediction, observed = TRUE),
                      get.pop.ex(expression, env$prediction, observed = FALSE)[-1])
     # convert to long format
     dep_ratio_long <- data.table(year = as.integer(names(dep_ratio)), yadr = dep_ratio)
     
-    # extract UN median and PI intervals
-    # TODO: get the UN values from Patrick 
-    # (for now we'll compute it from the median pop)
+    # UN observed median (compute from pop)
     unpop <- get_wpp_pop_by_age_multiple_years(un_code = env$prediction$countries$code)
     unyadr <- merge(unpop[age %in% 0:19, list(young = sum(pop)), by = "year"],
                     unpop[age %in% 20:64, list(adult = sum(pop)), by = "year"],
-                    by = "year")[, yadr := young/adult]
+                    by = "year")[, yadr := young/adult * 100]
+    # UN projections
+    unyadr_proj <- get_wpp_indicator_multiple_years("yadrproj1dt", package = "wpp2022extra",
+                                               un_code = uncode)[age == "0-19 / 20-64"]
+    # combine the UN datasets
+    unyadr_all <- rbind(unyadr[year < min(unyadr_proj$year), list(year, yadr)],
+                        unyadr_proj[, list(year, yadr = yadr, yadr_95l = yadr_95l, yadr_95u = yadr_95u)],
+                        fill = TRUE)
 
-    # merge together
-    dt <- merge(dep_ratio_long, unyadr[, list(year, un_yadr_median = yadr, 
-                                       un_yadr_95low = NA, un_yadr_95high = NA)],
+    # merge everything together
+    dt <- merge(dep_ratio_long, unyadr_all[, list(year, un_yadr_median = yadr, 
+                                       un_yadr_95low = yadr_95l, un_yadr_95high = yadr_95u)],
                 all = TRUE, by = "year")[year <= dep_ratio_long[, max(year)]]
     return(dt[!is.na(un_yadr_median)])
 }
 
 extract_oadr <- function(env){
     # old age dependency ratio
-    age <- pop <- oadr <- old <- adult <- un_oadr_median <- NULL
+    age <- pop <- oadr <- old <- adult <- un_oadr_median <- oadr_95l <- oadr_95u <- NULL
 
     uncode <- env$prediction$countries$code
-    expression <- paste0("P", uncode, "[65:130]/P", uncode, "[20:64]")
+    expression <- paste0("P", uncode, "[65:130]/P", uncode, "[20:64] * 100")
     dep_ratio <- c(get.pop.ex(expression, env$prediction, observed = TRUE),
                    get.pop.ex(expression, env$prediction, observed = FALSE)[-1])
     # convert to long format
     dep_ratio_long <- data.table(year = as.integer(names(dep_ratio)), oadr = dep_ratio)
     
-    # extract UN median and PI intervals
-    # TODO: get the UN values from Patrick 
-    # (for now we'll compute it from the median pop)
+    # UN observed median (compute from pop)
     unpop <- get_wpp_pop_by_age_multiple_years(un_code = env$prediction$countries$code)
     unoadr <- merge(unpop[age %in% 65:130, list(old = sum(pop)), by = "year"],
                     unpop[age %in% 20:64, list(adult = sum(pop)), by = "year"],
-                    by = "year")[, oadr := old/adult]
+                    by = "year")[, oadr := old/adult * 100]
+    # UN projections
+    unoadr_proj <- get_wpp_indicator_multiple_years("oadrproj1dt", package = "wpp2022extra",
+                                               un_code = uncode)[age == "65+ / 20-64"]
+    # combine the UN datasets
+    unoadr_all <- rbind(unoadr[year < min(unoadr_proj$year), list(year, oadr)],
+                        unoadr_proj[, list(year, oadr = oadr, oadr_95l = oadr_95l, oadr_95u = oadr_95u)],
+                        fill = TRUE)
     
     # merge together
-    dt <- merge(dep_ratio_long, unoadr[, list(year, un_oadr_median = oadr, 
-                                             un_oadr_95low = NA, un_oadr_95high = NA)],
+    dt <- merge(dep_ratio_long, unoadr_all[, list(year, un_oadr_median = oadr, 
+                                             un_oadr_95low = oadr_95l, un_oadr_95high = oadr_95u)],
                 all = TRUE, by = "year")[year <= dep_ratio_long[, max(year)]]
     return(dt[!is.na(un_oadr_median)])
 }
@@ -542,9 +562,9 @@ extract_e0_get_cdr <- function(env, deaths){
     cdr <- un_cdr_median <- un_e0_median <- i.e0B <- NULL
     
     # extract e0 and get cdr from the deaths table
-    # TODO: Should e0 be a simple average over the two sexes?
     uncode <- env$prediction$countries$code
-    expression <- paste0("(E", uncode, "_F[0] + E", uncode, "_M[0]) / 2")
+    # total e0 (bayesPop aggregates over sexes using weighted mx)
+    expression <- paste0("E", uncode, "[0]")
     e0_values <- c(get.pop.ex(expression, env$prediction, observed = TRUE),
                    get.pop.ex(expression, env$prediction, observed = FALSE)[-1])
     
@@ -570,6 +590,7 @@ get_tfr_cbr <- function(tfr, births){
 
 #' @rdname run_forecast
 #' @param forecast List returned by \code{run_forecast}
+#' @param verbose Logical that switches log messages on and off.
 #' @export
 remove_forecast <- function(forecast, verbose = TRUE){
     if(!is.null(forecast$prediction) && dir.exists(forecast$prediction$base.directory)){
@@ -577,4 +598,37 @@ remove_forecast <- function(forecast, verbose = TRUE){
         if(verbose) cat("\nPrediction directory", forecast$prediction$base.directory, "removed.\n")
     } else 
         if(verbose) cat("\nNothing to remove.\n")
+}
+
+#' @title Compute Targeted Measure 
+#' @description Helper function to obtain targeted measure, interpolated between start and end year.
+#' @param target Targeted value at \code{end_year}.
+#' @param dt Data table containing values to be modified by the interpolated values. It is expected to 
+#'      have a column "year" and another column containing the actual measure. Its name must correspond
+#'      to the \code{measure} argument, by default "tfr".
+#' @param start_year Year to start the interpolation.
+#' @param end_year Year at which the target value is to be reached.
+#' @param measure Name of the column to be interpolated.
+#' 
+#' @examples
+#' # Change the TFR of Niger to reach 4.0 at 2100, starting from 2023
+#' my_tfr <- get_wpp_tfr("Niger")
+#' my_tfr_mod <- get_targeted_measure(4, my_tfr, start_year = 2023)
+#' 
+#' # plot the difference
+#' plot(my_tfr$year, my_tfr$tfr, type = "l", xlab = "", ylab = "TFR", main = "Niger")
+#' lines(my_tfr_mod$year, my_tfr_mod$tfr, col = "red")
+#' 
+#' @export
+#' 
+get_targeted_measure <- function(target, dt, start_year = NULL, end_year = NULL, measure = "tfr"){
+    if(is.null(start_year)) start_year <- min(dt$year)
+    if(is.null(end_year)) end_year <- max(dt$year)
+    dtres <- dt[order(dt$year)]
+    index <- which(dtres$year >= start_year & dtres$year <= end_year)
+    interpolated_values <- approx(x = c(start_year, end_year), 
+                                  y = c(dtres[index[1], measure, with = FALSE], target),
+                                  xout = unlist(dtres[index, list(year)]))
+    dtres[index, measure] <- interpolated_values$y
+    return(dtres)
 }
