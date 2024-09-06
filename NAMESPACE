@@ -3,6 +3,8 @@
 export(get_targeted_measure)
 export(get_wpp)
 export(get_wpp_countries)
+export(get_wpp_e0)
+export(get_wpp_mig)
 export(get_wpp_pop)
 export(get_wpp_tfr)
 export(remove_forecast)

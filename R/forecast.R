@@ -223,7 +223,7 @@ prepare_pop <- function(pop, un_code, start_year){
 }
 
 prepare_tfr <- function(tfr, country, un_code, start_year){
-    # Stores TFR into a file that are compatible with bayesPop
+    # Stores TFR into a file that is compatible with bayesPop
     # (item tfr.file of "inputs" argument in ?pop.predict)
     # The WPP data for all years provided in the tfr dataset
     # are replaced by the new data.
@@ -249,6 +249,37 @@ prepare_tfr <- function(tfr, country, un_code, start_year){
     fwrite(all_wpp_tfr, file = tfr_file, sep = ",")
     return(tfr_file)
 }
+
+prepare_e0 <- function(e0, un_code, start_year){
+    # Stores e0 into two files (one for each sex)
+    # that are compatible with bayesPop
+    # (items e0M.file & e0F.file of "inputs" argument in ?pop.predict)
+    # Here we will replace the WPP data of the particular year
+    # with the new data.
+    if(is.null(pop)) return(c(male = NULL, female = NULL))
+    
+    country_code <- i.popM <- i.popF <- NULL # to satisfy CRAN check
+    
+    # load UN data
+    all_wpp_e0 <- get_wpp_e0(un_code)
+    
+    # replace data at the start_year with the user-provided data and add country_code
+    popext <- cbind(pop, year = start_year)
+    all_wpp_pop[popext, `:=`(popM = i.popM, popF = i.popF),
+                on = c("year", "age")][, country_code := un_code]
+    
+    # convert to wide format
+    male_pop <- dcast(all_wpp_pop, country_code + age ~ year, value.var = "popM")
+    female_pop <- dcast(all_wpp_pop, country_code + age ~ year, value.var = "popF")
+    
+    # save to temp files
+    male_file <- tempfile("popM", fileext = ".txt")
+    female_file <- tempfile("popF", fileext = ".txt")
+    fwrite(male_pop, file = male_file, sep = "\t")
+    fwrite(female_pop, file = female_file, sep = "\t")
+    return(c(male = male_file, female = female_file))
+}
+
 
 extract_pop_by_age_sex <- function(env, units = 1000){
     age <- age_to_100 <- pop <- NULL # to satisfy CRAN check

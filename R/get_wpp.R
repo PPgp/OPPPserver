@@ -106,6 +106,74 @@ get_wpp_tfr <- function(country){
     return(tfr)
 }
 
+#' @title Country-specific WPP life expectancy at birth
+#'
+#' @description The function returns the life expectancy at birth for male and female over time for a specific country
+#'       from the UN's World Population Prospects.
+#'
+#' @param country Name of country.
+#'
+#' @return \code{data.table} object with columns \code{year}, \code{e0M} and \code{e0F}.
+#'
+#' @details The data is extracted by combining datasets \code{\link[wpp2022]{e01dt}} and
+#'      \code{\link[wpp2022]{e0proj1dt}}.
+#' @export
+#'
+#' @examples
+#' # Compare female e0 of Japan and Norway
+#' e0_norway <- get_wpp_e0("Norway")
+#' e0_japan <- get_wpp_e0("Japan")
+#' plot(e0_japan[, year], e0_japan[, e0F], type = "l", ylim = c(50, 100),
+#'     main = "Female e0 of Japan and Norway", xlab = "", ylab = "e0")
+#' lines(e0_norway[, year], e0_norway[, e0F], col = "blue")
+#' legend("bottomright", legend = c("Japan", "Norway"), col = c("black", "blue"),
+#'     lty = 1, bty = "n")
+#'
+get_wpp_e0 <- function(country){
+    e0_est <- get_wpp("e01dt") # load observed data
+    e0_proj <- get_wpp("e0proj1dt") # load projected data
+    e0 <- rbind(e0_est[e0_est$name == country, c("year", "e0M", "e0F"), with = FALSE],
+                 e0_proj[e0_proj$name == country, c("year", "e0M", "e0F"), with = FALSE])
+    if(nrow(e0) == 0)
+        stop("Country ", country, " not available in the WPP data.")
+    return(e0)
+}
+
+#' @title Country-specific WPP net migration counts
+#'
+#' @description The function returns net migration totals over time for a specific country
+#'       from the UN's World Population Prospects.
+#'
+#' @param country Name of country.
+#'
+#' @return \code{data.table} object with columns \code{year} and \code{mig}.
+#'
+#' @details The data corresponds to the dataset \code{\link[wpp2022]{migration1dt}}.
+#' @export
+#'
+#' @examples
+#' # Compare migration of three countries
+#' country.colors <- list(Germany = "black", China = "orange", 
+#'                         `United States of America` = "red")
+#' plot(0,1, type = "n", ylim = c(-1000, 2000), xlim = c(1950, 2100), 
+#'     main = "Net Migration", ylab = "Migration/1000", xlab = "")
+#' for(cntry in names(country.colors)){
+#'     mig <- get_wpp_mig(cntry)
+#'     lines(mig[, year], mig[, mig], col = country.colors[[cntry]])
+#' }
+#' abline(h = 0, col = "grey")
+#' legend("topright", legend = names(country.colors), col = unlist(country.colors),
+#'     lty = 1, bty = "n")
+#'
+get_wpp_mig <- function(country){
+    mig_all <- get_wpp("migration1dt") # load observed and projected data
+    mig <- mig_all[mig_all$name == country, c("year", "mig"), with = FALSE]
+    if(nrow(mig) == 0)
+        stop("Country ", country, " not available in the WPP data.")
+    return(mig)
+}
+
+
 
 # Getter function for the WPP datasets.
 # Since some of the datasets are big, it caches already used datasets.
