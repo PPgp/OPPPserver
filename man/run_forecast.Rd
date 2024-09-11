@@ -11,6 +11,8 @@ run_forecast(
   end_year = 2100,
   pop = NULL,
   tfr = NULL,
+  e0 = NULL,
+  mig = NULL,
   units = 1000,
   output_dir = NULL,
   ...
@@ -31,6 +33,12 @@ Columns are the same as in \code{\link{get_wpp_pop}}. By default, the WPP data i
 
 \item{tfr}{Data table containing the TFR scenario. It has the same structure as
 the dataset returned by \code{\link{get_wpp_tfr}}. By default the UN data is used.}
+
+\item{e0}{Data table containing the life expectancy scenario. It has the same structure as
+the dataset returned by \code{\link{get_wpp_e0}}. By default the UN data is used.}
+
+\item{mig}{Data table containing the migration scenario. It has the same structure as
+the dataset returned by \code{\link{get_wpp_mig}}. By default the UN data is used.}
 
 \item{units}{Scale of the output data. By default a simulation results are given in thousands.
 If for example one would like to see results in millions, set \code{unit = 1e6}.}
@@ -59,6 +67,9 @@ List with elements:
      \item{tfr_by_time}{Data table with the total fertility forecast and the UN median and the 
          95\% probability intervals (columns \code{year}, \code{tfr}, \code{un_tfr_median}, 
          \code{un_tfr_95low}, \code{un_tfr_95high}).}
+     \item{e0_by_time}{Data table with the forecast of sex specific life expectancy at birth as well as the UN medians,
+          including the 95\% probability intervals (columns \code{year}, \code{sex}, \code{e0}, \code{un_e0_median}, 
+         \code{un_e0_95low}, \code{un_e0_95high}).}
      \item{annual_growth_rate}{Data table with the forecast of annual growth rate as a percentage,
              computed as \eqn{log(P_t/P_{t-1})*100}, for the same age groups as in \code{population_by_time}
              (columns \code{year}, \code{age}, \code{growth_rate}).}
@@ -96,11 +107,13 @@ Runs forecast and returns various datasets with results.
 \details{
 The \code{run_forecast} function launches population prediction for the given country via the \code{\link[bayesPop]{pop.predict}} 
     function from the \pkg{bayesPop} package. It uses default input datasets from the \pkg{wpp2022} package, 
-    while possibly overwriting the initial population if given in the argument \code{pop}, 
-    and the total fertility rate if given in \code{tfr}. The \code{\link[bayesPop]{pop.predict}} function is called
+    while possibly overwriting the initial population (if given in the argument \code{pop}), 
+    the total fertility rate (argument \code{tfr}), the sex-specific life expectancy at birth
+    (argument \code{e0}) or/and the total net migration (argument \code{mig}). 
+    If \code{e0} is not supplied, the \code{\link[bayesPop]{pop.predict}} function is called
     with the argument \code{fixed.mx = FALSE}, so that projected mortality rates from the \pkg{wpp2022} package
     are used instead of the life expectancy at birth. Currently, it is assumes that it is a deterministic 
-    projection, with one trajectory of TFR.
+    projection, with one trajectory of all, TFR, life expectancy and migration.
     
     If it is desired to preserve the resulting 
     \code{\link[bayesPop]{bayesPop.prediction}} object, argument \code{output_dir} should be given. 
@@ -113,11 +126,15 @@ The \code{run_forecast} function launches population prediction for the given co
 my_tfr <- get_wpp_tfr("Niger")
 my_tfr[year >= 2054, tfr := 4]
 
-forecast <- run_forecast("Niger", start_year = 2030, tfr = my_tfr)
+# Decrease e0  by 4 (male) and 3 (female) for the same time range 
+my_e0 <- get_wpp_e0("Niger")
+my_e0[year >= 2054, `:=`(e0M = e0M - 4, e0F = e0F - 3)]
 
-# plot population and fertility
-################################
-par(mfrow = c(1,3))
+forecast <- run_forecast("Niger", start_year = 2030, tfr = my_tfr, e0 = my_e0)
+
+# plot population, fertility, and life expectancy
+#################################################
+par(mfrow = c(2,2))
 
 # extract total population
 respop <- forecast$population_by_time[age == "Total"]
@@ -131,7 +148,7 @@ lines(respop$year, respop$un_pop_95high, col = "blue", lty = 2)
 legend("topleft", legend = c("my scenario", "UN", "UN 95\% PI"), col = c("red", "blue", "blue"),
     lty = c(1, 1, 2), bty = "n")
     
-# extract fertility results
+# extract fertility
 restfr <- forecast$tfr_by_time
 plot(restfr$year, restfr$tfr, type = "l", col = "red", ylim = c(0, 8),
     main = "Niger TFR", ylab = "Total fertility rate", xlab = "")
@@ -151,5 +168,15 @@ lines(rescbr$year, rescbr$un_cbr_95high, col = "blue", lty = 2)
 legend("bottomleft", legend = c("my scenario", "UN", "UN 95\% PI"), col = c("red", "blue", "blue"),
     lty = c(1, 1, 2), bty = "n")
 
+# extract life expectancy at birth (all sexes)
+rese0 <- forecast$e0_by_time[sex == "B"]
+plot(rese0$year, rese0$e0, type = "l", col = "red", 
+    ylim = range(rese0$un_e0_median, rese0$un_e0_95low, rese0$un_e0_95high, na.rm = TRUE),
+    main = "Niger's total e0", ylab = "Life expectancy at birth", xlab = "")
+lines(rese0$year, rese0$un_e0_median, col = "blue")
+lines(rese0$year, rese0$un_e0_95low, col = "blue", lty = 2)
+lines(rese0$year, rese0$un_e0_95high, col = "blue", lty = 2)
+legend("bottomleft", legend = c("my scenario", "UN", "UN 95\% PI"), col = c("red", "blue", "blue"),
+    lty = c(1, 1, 2), bty = "n")
 
 }
