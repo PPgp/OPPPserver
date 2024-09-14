@@ -70,6 +70,7 @@ List with elements:
      \item{e0_by_time}{Data table with the forecast of sex specific life expectancy at birth as well as the UN medians,
           including the 95\% probability intervals (columns \code{year}, \code{sex}, \code{e0}, \code{un_e0_median}, 
          \code{un_e0_95low}, \code{un_e0_95high}).}
+     \item{mig_by_time}{Data table with the migration forecast and the UN median.}
      \item{annual_growth_rate}{Data table with the forecast of annual growth rate as a percentage,
              computed as \eqn{log(P_t/P_{t-1})*100}, for the same age groups as in \code{population_by_time}
              (columns \code{year}, \code{age}, \code{growth_rate}).}

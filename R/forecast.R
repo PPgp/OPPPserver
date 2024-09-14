@@ -37,6 +37,7 @@
 #'      \item{e0_by_time}{Data table with the forecast of sex specific life expectancy at birth as well as the UN medians,
 #'           including the 95\% probability intervals (columns \code{year}, \code{sex}, \code{e0}, \code{un_e0_median}, 
 #'          \code{un_e0_95low}, \code{un_e0_95high}).}
+#'      \item{mig_by_time}{Data table with the migration forecast and the UN median.}
 #'      \item{annual_growth_rate}{Data table with the forecast of annual growth rate as a percentage,
 #'              computed as \eqn{log(P_t/P_{t-1})*100}, for the same age groups as in \code{population_by_time}
 #'              (columns \code{year}, \code{age}, \code{growth_rate}).}
@@ -156,11 +157,8 @@ run_forecast <- function(country, start_year = 2023, end_year = 2100,
     pop_files <- prepare_pop(pop, code, start_year)
     tfr_file <- prepare_tfr(tfr, country, code, start_year)
     e0_files <- prepare_e0(e0, country, code, start_year)
-    #mig_file <- prepare_mig(mig, country, code, start_year)
-    mig_file <- NULL
+    mig_file <- prepare_mig(mig, country, code, start_year)
 
-    #stop("")
-    #browser()
     # simulation directory
     sim_dir <- if(is.null(output_dir)) tempdir() else output_dir
 
@@ -191,6 +189,7 @@ run_forecast <- function(country, start_year = 2023, end_year = 2100,
     pop_by_time <- get_pop_by_time(pop_by_age_sex, code)
     tfr_by_time <- extract_tfr_by_time(pred_env)
     e0_by_time <- extract_e0_by_time(pred_env)
+    mig_by_time <- extract_mig_by_time(pred_env)
     growth_rate <- get_annual_growth_rate(pop_by_time)
     births <- extract_births(pred_env, units = units)
     deaths <- extract_deaths(pred_env, units = units)
@@ -210,6 +209,7 @@ run_forecast <- function(country, start_year = 2023, end_year = 2100,
                 population_by_time = pop_by_time,
                 tfr_by_time = tfr_by_time,
                 e0_by_time = e0_by_time,
+                mig_by_time = mig_by_time,
                 annual_growth_rate = growth_rate,
                 births_counts_rates = births,
                 deaths_counts_rates = deaths,
@@ -305,6 +305,29 @@ prepare_e0 <- function(e0, country, un_code, start_year){
     fwrite(all_wpp_e0[, list(LocID, Year = year, Trajectory, e0 = e0F)], file = female_file, sep = ",")
     return(c(male = male_file, female = female_file))
 }
+
+prepare_mig <- function(mig, country, un_code, start_year){
+    # Stores migration into a file that is compatible with bayesPop
+    # (item "mig" of "inputs" argument in ?pop.predict)
+    
+    if(is.null(mig)) return(NULL)
+    
+    country_code <- Trajectory <- i.mig <- NULL # to satisfy CRAN check
+    
+    all_wpp_mig <- get_wpp_mig(country)[, country_code := un_code]
+    
+    # replace data with the user-provided data
+    all_wpp_mig[mig, mig := i.mig, on = "year"]
+    
+    # convert to wide format
+    all_wpp_mig_wide <- data.table::dcast(all_wpp_mig, country_code ~ year, value.var = "mig")
+    
+    # save to a temp file
+    mig_file <- tempfile("mig", fileext = ".txt")
+    fwrite(all_wpp_mig_wide, file = mig_file, sep = "\t")
+    return(mig_file)
+}
+
 
 
 extract_pop_by_age_sex <- function(env, units = 1000){
@@ -484,6 +507,27 @@ extract_e0_by_time <- function(env) {
     return(dt[!is.na(un_e0_median)])
 }
 
+extract_mig_by_time <- function(env) {
+    mig <- mig_95l <- mig_95u <- un_mig_median <- NULL
+    # extract observed and predicted data
+    expression <- paste0("G", env$prediction$countries$code)
+    mig_data <- c(get.pop.ex(expression, env$prediction, observed = TRUE),
+                  get.pop.ex(expression, env$prediction, observed = FALSE)[-1])
+    
+    # convert to long format
+    mig_long <- data.table(year = as.integer(names(mig_data)), mig = mig_data)
+    
+    # extract UN median and PI intervals
+    unmig <- get_wpp_indicator_multiple_years("migration1dt", 
+                                              un_code = env$prediction$countries$code)[year <= mig_long[, max(year)]]
+    
+    # merge together
+    dt <- merge(mig_long, unmig[, list(year, un_mig_median = mig 
+                                       #un_mig_95low = mig_95l, un_mig_95high = mig_95u
+                                       )],
+                all = TRUE, by = "year")
+    return(dt[!is.na(un_mig_median)])
+}
 
 get_annual_growth_rate <- function(pop){
     age <- year_lag <- pop_lag <- i.pop <- NULL
