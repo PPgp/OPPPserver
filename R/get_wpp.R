@@ -1,7 +1,7 @@
 
 #' @title WPP countries
 #'
-#' @description Returns a vector of country names included in the WPP data
+#' @description Returns a vector of country names included in the WPP data.
 #' @param include_aggregates Logical. If \code{TRUE} the set of countries includes
 #'      aggregated regions, such as continents or other aggregations of countries.
 #'      If \code{FALSE} (default) only countries are returned.
@@ -32,6 +32,31 @@ get_wpp_countries <- function(include_aggregates = FALSE, sort = TRUE) {
     if(sort) locations <- sort(locations)
     return(locations)
 }
+
+#' @title WPP regions
+#'
+#' @description Returns a vector of names of aggregated regions, such as continents or 
+#'     other aggregations of countries, included in the WPP data.
+#' @param sort Logical. If \code{TRUE} results are sorted alphabetically.
+#'
+#' @return Character vector of names of regions.
+#' @details The function uses the \code{\link[wpp2022]{UNlocations}} dataset of the
+#'      \pkg{wpp2022} package. It selects locations where \code{location_type} is other than four,
+#'      as four is the code for countries.
+#' @export
+#'
+#' @examples
+#' regions <- get_wpp_regions()
+#' head(regions)
+#' tail(regions)
+#'
+get_wpp_regions <- function(sort = TRUE) {
+    locations <- get_wpp("UNlocations")
+    locations <- locations[locations$location_type != 4, "name"]
+    if(sort) locations <- sort(locations)
+    return(locations)
+}
+
 
 #' @title Country-specific WPP population
 #'
@@ -175,8 +200,9 @@ get_wpp_mig <- function(country){
 
 
 
-# Getter function for the WPP datasets.
-# Since some of the datasets are big, it caches already used datasets.
+#' @title Getter function for the WPP datasets.
+#' @description Since some of the datasets are big, this function caches already used datasets.
+#' @keywords internal
 #' @export
 get_wpp <- memoise::memoise(function(dataset_name, package = "wpp2022"){
     data(list = dataset_name, package = package)

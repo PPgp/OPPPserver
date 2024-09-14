@@ -17,7 +17,7 @@ If \code{FALSE} (default) only countries are returned.}
 Character vector of names of countries and optionally aggregations.
 }
 \description{
-Returns a vector of country names included in the WPP data
+Returns a vector of country names included in the WPP data.
 }
 \details{
 The function uses the \code{\link[wpp2022]{UNlocations}} dataset of the
