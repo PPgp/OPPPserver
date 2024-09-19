@@ -69,12 +69,12 @@
 #'      
 #' }
 #' @details The \code{run_forecast} function launches population prediction for the given country via the \code{\link[bayesPop]{pop.predict}} 
-#'     function from the \pkg{bayesPop} package. It uses default input datasets from the \pkg{wpp2022} package, 
+#'     function from the \pkg{bayesPop} package. It uses default input datasets from the \pkg{wpp2024} package, 
 #'     while possibly overwriting the initial population (if given in the argument \code{pop}), 
 #'     the total fertility rate (argument \code{tfr}), the sex-specific life expectancy at birth
 #'     (argument \code{e0}) or/and the total net migration (argument \code{mig}). 
 #'     If \code{e0} is not supplied, the \code{\link[bayesPop]{pop.predict}} function is called
-#'     with the argument \code{fixed.mx = FALSE}, so that projected mortality rates from the \pkg{wpp2022} package
+#'     with the argument \code{fixed.mx = FALSE}, so that projected mortality rates from the \pkg{wpp2024} package
 #'     are used instead of the life expectancy at birth. Currently, it is assumes that it is a deterministic 
 #'     projection, with one trajectory of all, TFR, life expectancy and migration.
 #'     
@@ -146,7 +146,7 @@
 #' @rdname run_forecast
 #'
 
-run_forecast <- function(country, start_year = 2023, end_year = 2100,
+run_forecast <- function(country, start_year = 2024, end_year = 2100,
                          pop = NULL, tfr = NULL, e0 = NULL, mig = NULL, 
                          units = 1000, output_dir = NULL, ...){
 
@@ -165,7 +165,7 @@ run_forecast <- function(country, start_year = 2023, end_year = 2100,
     # launch simulation
     ###################
     pred <- pop.predict(end.year = end_year, present.year = start_year,
-                        wpp.year = 2022, output.dir = sim_dir,
+                        wpp.year = 2024, output.dir = sim_dir,
                         countries = code, annual = TRUE,
                         inputs = list(
                             popM = pop_files["male"], popF = pop_files["female"],
@@ -443,7 +443,7 @@ get_pop_by_time <- function(pop_by_age_sex, un_code) {
        on = c("year", "age")]
     
     # add UN PIs
-    unpop_pi <- get_wpp_indicator_multiple_years("popprojAgeGrp1dt", package = "wpp2022extra",
+    unpop_pi <- get_wpp_indicator_multiple_years("popprojAgeGrp1dt", package = "wpp2024extra",
                                                  un_code = un_code)
     # rename 60-99 -> 60+ and  65-99 -> 65+
     # TODO: Clarify with Patrick if these categories indeed match
@@ -556,9 +556,9 @@ extract_births <- function(env, units = 1000){
                               births = birth_count, cbr = birth_rate)
     
     # extract UN values
-    unbirths <- get_wpp_indicator_multiple_years("births1dt", "birthsproj1dt", package = "wpp2022extra",
+    unbirths <- get_wpp_indicator_multiple_years("births1dt", "birthsproj1dt", package = "wpp2024extra",
                                               un_code = uncode)
-    uncbr <- get_wpp_indicator_multiple_years("cbr1dt", "cbrproj1dt", package = "wpp2022extra",
+    uncbr <- get_wpp_indicator_multiple_years("cbr1dt", "cbrproj1dt", package = "wpp2024extra",
                                               un_code = uncode)
     # merge together
     dt <- merge(
@@ -594,9 +594,9 @@ extract_deaths <- function(env, units = 1000){
                               deaths = death_count, cdr = death_rate)
     
     # extract UN values
-    undeaths <- get_wpp_indicator_multiple_years("deaths1dt", "deathsproj1dt", package = "wpp2022extra",
+    undeaths <- get_wpp_indicator_multiple_years("deaths1dt", "deathsproj1dt", package = "wpp2024extra",
                                                  un_code = uncode)
-    uncdr <- get_wpp_indicator_multiple_years("cdr1dt", "cdrproj1dt", package = "wpp2022extra",
+    uncdr <- get_wpp_indicator_multiple_years("cdr1dt", "cdrproj1dt", package = "wpp2024extra",
                                               un_code = uncode)
     # merge together
     dt <- merge(
@@ -629,7 +629,7 @@ extract_yadr <- function(env){
                     unpop[age %in% 20:64, list(adult = sum(pop)), by = "year"],
                     by = "year")[, yadr := young/adult * 100]
     # UN projections
-    unyadr_proj <- get_wpp_indicator_multiple_years("yadrproj1dt", package = "wpp2022extra",
+    unyadr_proj <- get_wpp_indicator_multiple_years("yadrproj1dt", package = "wpp2024extra",
                                                un_code = uncode)[age == "0-19 / 20-64"]
     # combine the UN datasets
     unyadr_all <- rbind(unyadr[year < min(unyadr_proj$year), list(year, yadr)],
@@ -660,7 +660,7 @@ extract_oadr <- function(env){
                     unpop[age %in% 20:64, list(adult = sum(pop)), by = "year"],
                     by = "year")[, oadr := old/adult * 100]
     # UN projections
-    unoadr_proj <- get_wpp_indicator_multiple_years("oadrproj1dt", package = "wpp2022extra",
+    unoadr_proj <- get_wpp_indicator_multiple_years("oadrproj1dt", package = "wpp2024extra",
                                                un_code = uncode)[age == "65+ / 20-64"]
     # combine the UN datasets
     unoadr_all <- rbind(unoadr[year < min(unoadr_proj$year), list(year, oadr)],
@@ -743,9 +743,9 @@ remove_forecast <- function(forecast, verbose = TRUE){
 #' @param measure Name of the column to be interpolated.
 #' 
 #' @examples
-#' # Change the TFR of Niger to reach 4.0 at 2100, starting from 2023
+#' # Change the TFR of Niger to reach 4.0 at 2100, starting from 2024
 #' my_tfr <- get_wpp_tfr("Niger")
-#' my_tfr_mod <- get_targeted_measure(4, my_tfr, start_year = 2023)
+#' my_tfr_mod <- get_targeted_measure(4, my_tfr, start_year = 2024)
 #' 
 #' # plot the difference
 #' plot(my_tfr$year, my_tfr$tfr, type = "l", xlab = "", ylab = "TFR", main = "Niger")

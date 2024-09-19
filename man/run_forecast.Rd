@@ -7,7 +7,7 @@
 \usage{
 run_forecast(
   country,
-  start_year = 2023,
+  start_year = 2024,
   end_year = 2100,
   pop = NULL,
   tfr = NULL,
@@ -107,12 +107,12 @@ Runs forecast and returns various datasets with results.
 }
 \details{
 The \code{run_forecast} function launches population prediction for the given country via the \code{\link[bayesPop]{pop.predict}} 
-    function from the \pkg{bayesPop} package. It uses default input datasets from the \pkg{wpp2022} package, 
+    function from the \pkg{bayesPop} package. It uses default input datasets from the \pkg{wpp2024} package, 
     while possibly overwriting the initial population (if given in the argument \code{pop}), 
     the total fertility rate (argument \code{tfr}), the sex-specific life expectancy at birth
     (argument \code{e0}) or/and the total net migration (argument \code{mig}). 
     If \code{e0} is not supplied, the \code{\link[bayesPop]{pop.predict}} function is called
-    with the argument \code{fixed.mx = FALSE}, so that projected mortality rates from the \pkg{wpp2022} package
+    with the argument \code{fixed.mx = FALSE}, so that projected mortality rates from the \pkg{wpp2024} package
     are used instead of the life expectancy at birth. Currently, it is assumes that it is a deterministic 
     projection, with one trajectory of all, TFR, life expectancy and migration.
     

@@ -29,9 +29,9 @@ to the \code{measure} argument, by default "tfr".}
 Helper function to obtain targeted measure, interpolated between start and end year.
 }
 \examples{
-# Change the TFR of Niger to reach 4.0 at 2100, starting from 2023
+# Change the TFR of Niger to reach 4.0 at 2100, starting from 2024
 my_tfr <- get_wpp_tfr("Niger")
-my_tfr_mod <- get_targeted_measure(4, my_tfr, start_year = 2023)
+my_tfr_mod <- get_targeted_measure(4, my_tfr, start_year = 2024)
 
 # plot the difference
 plot(my_tfr$year, my_tfr$tfr, type = "l", xlab = "", ylab = "TFR", main = "Niger")

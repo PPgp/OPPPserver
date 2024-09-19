@@ -17,7 +17,7 @@ The function returns net migration totals over time for a specific country
       from the UN's World Population Prospects.
 }
 \details{
-The data corresponds to the dataset \code{\link[wpp2022]{migration1dt}}.
+The data corresponds to the dataset \code{\link[wpp2024]{migration1dt}}.
 }
 \examples{
 # Compare migration of three countries

@@ -17,8 +17,8 @@ The function returns the total fertility rate over time for a specific country
       from the UN's World Population Prospects.
 }
 \details{
-The data is extracted by combining datasets \code{\link[wpp2022]{tfr1dt}} and
-     \code{\link[wpp2022]{tfrproj1dt}}.
+The data is extracted by combining datasets \code{\link[wpp2024]{tfr1dt}} and
+     \code{\link[wpp2024]{tfrproj1dt}}.
 }
 \examples{
 # Compare TFR of Niger and Brazil

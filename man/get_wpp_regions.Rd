@@ -17,8 +17,8 @@ Returns a vector of names of aggregated regions, such as continents or
     other aggregations of countries, included in the WPP data.
 }
 \details{
-The function uses the \code{\link[wpp2022]{UNlocations}} dataset of the
-     \pkg{wpp2022} package. It selects locations where \code{location_type} is other than four,
+The function uses the \code{\link[wpp2024]{UNlocations}} dataset of the
+     \pkg{wpp2024} package. It selects locations where \code{location_type} is other than four,
      as four is the code for countries.
 }
 \examples{

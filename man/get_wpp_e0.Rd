@@ -17,8 +17,8 @@ The function returns the life expectancy at birth for male and female over time 
       from the UN's World Population Prospects.
 }
 \details{
-The data is extracted by combining datasets \code{\link[wpp2022]{e01dt}} and
-     \code{\link[wpp2022]{e0proj1dt}}.
+The data is extracted by combining datasets \code{\link[wpp2024]{e01dt}} and
+     \code{\link[wpp2024]{e0proj1dt}}.
 }
 \examples{
 # Compare female e0 of Japan and Norway

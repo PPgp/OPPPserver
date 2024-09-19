@@ -20,8 +20,8 @@ Character vector of names of countries and optionally aggregations.
 Returns a vector of country names included in the WPP data.
 }
 \details{
-The function uses the \code{\link[wpp2022]{UNlocations}} dataset of the
-     \pkg{wpp2022} package. By default it selects locations where \code{location_type} is 4.
+The function uses the \code{\link[wpp2024]{UNlocations}} dataset of the
+     \pkg{wpp2024} package. By default it selects locations where \code{location_type} is 4.
      If \code{include_aggregates} is \code{TRUE} it returns all locations from this dataset.
 }
 \examples{

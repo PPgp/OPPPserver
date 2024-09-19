@@ -4,7 +4,7 @@
 \alias{get_wpp}
 \title{Getter function for the WPP datasets.}
 \usage{
-get_wpp(dataset_name, package = "wpp2022")
+get_wpp(dataset_name, package = "wpp2024")
 }
 \description{
 Since some of the datasets are big, this function caches already used datasets.

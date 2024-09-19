@@ -4,7 +4,7 @@
 \alias{get_wpp_pop}
 \title{Country-specific WPP population}
 \usage{
-get_wpp_pop(country, year = 2023)
+get_wpp_pop(country, year = 2024)
 }
 \arguments{
 \item{country}{Name of country.}
@@ -20,21 +20,21 @@ Given a specific country and year, the function returns a sex- and
      age-specific dataset of population counts from the UN's World Population Prospects.
 }
 \details{
-The data is extracted either from the dataset \code{\link[wpp2022]{popAge1dt}} or
-     \code{\link[wpp2022]{popprojAge1dt}}, depending on the specified \code{year}.
+The data is extracted either from the dataset \code{\link[wpp2024]{popAge1dt}} or
+     \code{\link[wpp2024]{popprojAge1dt}}, depending on the specified \code{year}.
 }
 \examples{
-# Retrieve and plot population of Spain for 2023 and 1960
-spain_pop <- get_wpp_pop("Spain") # default of 2023
+# Retrieve and plot population of Spain for 2024 and 1960
+spain_pop <- get_wpp_pop("Spain") # default of 2024
 plot(spain_pop[, age], spain_pop[, popF], type = "l", col = "red",
-    main = "Population of Spain in 2023 and 1960",
+    main = "Population of Spain in 2024 and 1960",
     xlab = "age", ylab = "Population (in thousands)")
 lines(spain_pop[, age], spain_pop[, popM], col = "blue")
 
 spain_pop60 <- get_wpp_pop("Spain", year = 1960)
 lines(spain_pop60[, age], spain_pop60[, popF], col = "red", lty = 2)
 lines(spain_pop60[, age], spain_pop60[, popM], col = "blue", lty = 2)
-legend("bottomleft", legend = c("female 2023", "male 2023", "female 1960", "male 1960"),
+legend("bottomleft", legend = c("female 2024", "male 2024", "female 1960", "male 1960"),
       bty = "n", lty = c(1, 1, 2, 2), col = rep(c("red", "blue"), 2))
 
 }
