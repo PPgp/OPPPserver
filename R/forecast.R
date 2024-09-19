@@ -518,12 +518,12 @@ extract_mig_by_time <- function(env) {
     mig_long <- data.table(year = as.integer(names(mig_data)), mig = mig_data)
     
     # extract UN median and PI intervals
-    unmig <- get_wpp_indicator_multiple_years("migration1dt", 
+    unmig <- get_wpp_indicator_multiple_years("mig1dt", "migproj1dt", 
                                               un_code = env$prediction$countries$code)[year <= mig_long[, max(year)]]
     
     # merge together
-    dt <- merge(mig_long, unmig[, list(year, un_mig_median = mig 
-                                       #un_mig_95low = mig_95l, un_mig_95high = mig_95u
+    dt <- merge(mig_long, unmig[, list(year, un_mig_median = mig,
+                                       un_mig_95low = mig_95l, un_mig_95high = mig_95u
                                        )],
                 all = TRUE, by = "year")
     return(dt[!is.na(un_mig_median)])
