@@ -173,7 +173,7 @@ run_forecast <- function(country, start_year = 2024, end_year = 2100,
                             e0F.file = e0_files["female"], e0M.file = e0_files["male"]
                         ),
                         nr.traj = 1, keep.vital.events = TRUE,
-                        fixed.mx = is.null(e0),
+                        fixed.mx = is.null(e0), fixed.pasfr = is.null(tfr),
                         replace.output = TRUE, ...
                         )
 
