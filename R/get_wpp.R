@@ -28,6 +28,7 @@
 #'
 get_wpp_countries <- function(include_aggregates = FALSE, sort = TRUE) {
     locations <- get_wpp("UNlocations")
+    locations <- locations[locations$country_code != 336,] # do not include Holy See
     locations <- if(include_aggregates) locations[, "name"] else locations[locations$location_type == 4, "name"]
     if(sort) locations <- sort(locations)
     return(locations)
