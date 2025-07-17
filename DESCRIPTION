@@ -1,7 +1,7 @@
 Package: OPPPserver
 Type: Package
 Title: UN Online Population Projection Platform Server Functions
-Version: 0.1-0.9008
+Version: 0.2-0.9001
 Date: 2024-11-27
 Author: Hana Sevcikova
 Maintainer: Hana Sevcikova <hanas@uw.edu>
@@ -16,4 +16,4 @@ Imports:
     cachem
 Depends: bayesPop (>= 10.0-1.9019)
 Remotes: PPgp/wpp2024, PPgp/wpp2024extra, PPgp/bayesPop
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2

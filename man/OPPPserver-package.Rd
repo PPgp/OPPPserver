@@ -2,11 +2,14 @@
 % Please edit documentation in R/OPPPserver.R
 \docType{package}
 \name{OPPPserver-package}
-\alias{OPPPserver-package}
 \alias{OPPPserver}
+\alias{OPPPserver-package}
 \title{UN Online Population Projection Platform Server Functions}
 \description{
 Collection of functions to be used by the UN Online Population Projection Platform.
+}
+\details{
+OPPPserver
 }
 \author{
 Hana Sevcikova
