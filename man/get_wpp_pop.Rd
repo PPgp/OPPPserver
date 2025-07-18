@@ -4,20 +4,18 @@
 \alias{get_wpp_pop}
 \title{Country-specific WPP population}
 \usage{
-get_wpp_pop(country, year = NULL, n = 1)
+get_wpp_pop(country, year = 2024, n = 1)
 }
 \arguments{
 \item{country}{Name of country.}
 
-\item{year}{Integer value specifying the year for which data should be extracted.
-The default is 2024 for 1x1 data and 2025 for 5x5 data, determined by the argument \code{n}.
-For 5x5 data, only years that are divisible by 5 are available.}
+\item{year}{Integer value specifying the year for which data should be extracted.}
 
 \item{n}{Size of age groups. It can be either 1 (default) or 5.}
 }
 \value{
 \code{data.table} object with female and male population counts (in thousands) by age.
-     It contains columns \code{age}, \code{popF} (female), \code{popM} (male). By default 
+     It contains columns \code{age}, \code{popF} (female), \code{popM} (male). By default
      one year age groups are used. If \code{n} is 5, the grouping is by five years of age.
 }
 \description{
@@ -25,11 +23,9 @@ Given a specific country and year, the function returns a sex- and
      age-specific dataset of population counts from the UN's World Population Prospects.
 }
 \details{
-If \code{n} is 1 (default), the data is extracted either from the dataset \code{\link[wpp2024]{popAge1dt}} or
-     \code{\link[wpp2024]{popprojAge1dt}}, depending on the specified \code{year}. 
-     If \code{n} is 5, the dataset is created using either \code{\link[wpp2024]{popAge5dt}} or
-     \code{\link[wpp2024]{popprojAge5dt}}. In this case, if \code{year} is not divisible by 5, it is rounded 
-     to the nearest year that is a multiple of 5.
+The data is extracted either from the dataset \code{\link[wpp2024]{popAge1dt}} or
+     \code{\link[wpp2024]{popprojAge1dt}}, depending on the specified \code{year}.
+     If \code{n} is 5, the dataset is aggregated into 5-year age groups.
 }
 \examples{
 # Retrieve and plot population of Spain for 2024 and 1960
@@ -42,8 +38,8 @@ lines(spain_pop[, age], spain_pop[, popM], col = "blue")
 spain_pop60 <- get_wpp_pop("Spain", year = 1960)
 lines(spain_pop60[, age], spain_pop60[, popF], col = "red", lty = 2)
 lines(spain_pop60[, age], spain_pop60[, popM], col = "blue", lty = 2)
-legend("bottomleft", 
+legend("bottomleft",
     legend = c("female 2024", "male 2024", "female 1960", "male 1960"),
     bty = "n", lty = c(1, 1, 2, 2), col = rep(c("red", "blue"), 2))
-      
+
 }
