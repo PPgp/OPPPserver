@@ -39,12 +39,12 @@ graduate_pop <- function(pop, method = "beers(ord)", pop_columns = NULL){
     age <- agecat <- age1 <- NULL
     age5to1cat <- get_wpp("age5categories")
     age5 <- unique(age5to1cat[, list(agecat, age)])
-    pop_res <- age5to1cat[, list(age = age1)]
+    pop_res <- age5to1cat[age1 <= max(pop[["age"]]), list(age = age1)]
     if(is.null(pop_columns)) pop_columns <- setdiff(colnames(pop), "age")
     for(col in pop_columns){
         val <- DemoTools::graduate(pop[[col]], Age = pop[["age"]], 
                                    method = method, constrain = TRUE, OAG = TRUE)
-        pop_res[[col]] <- val
+        pop_res[[col]] <- as.vector(val)
     }
     return(pop_res)
 }
