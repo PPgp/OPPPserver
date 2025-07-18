@@ -4,17 +4,23 @@
 \alias{graduate_pop}
 \title{Graduating Population from Five- to Single-Year Ages}
 \usage{
-graduate_pop(pop, method = "beers(ord)")
+graduate_pop(pop, method = "beers(ord)", pop_columns = NULL)
 }
 \arguments{
 \item{pop}{Data table with population data aggregated to 5-year age groups. 
-Columns are the same as in \code{\link{get_wpp_pop}}, i.e. 
-\code{age}, \code{popF} and \code{popM}.}
+The only required column is \dQuote{age} with starting values of the age groups,
+i.e. 0, 5, 10, \dots.  Any additional columns are considered as population 
+values to be disaggregated.}
 
-\item{method}{Method to use in the \code{\link[DemoTools]{graduate}} function of the \pkg{DemoTools} package.}
+\item{method}{Method to use in the \code{\link[DemoTools]{graduate}} function 
+of the \pkg{DemoTools} package.}
+
+\item{pop_columns}{Character vector of columns of the \code{pop} dataset to graduate. 
+By default, all columns that are not called \dQuote{age} are used.}
 }
 \value{
-Data table with the same columns as in the \code{pop} input argument, but 
+Data table with the same columns as in the \code{pop} dataset 
+    (or defined by \code{pop_columns}), 
     with age groups (rows) disaggregated into single-year ages.
 }
 \description{
@@ -22,7 +28,7 @@ The function disaggregates the input population from 5-year to 1-year ages.
 }
 \details{
 The function applies the \pkg{DemoTools} function \code{\link[DemoTools]{graduate}}
-    on both population columns of the input argument \code{pop} and returns the disaggregated dataset.
+    on all population columns of the \code{pop} dataset and returns the disaggregated dataset.
 }
 \examples{
 # extract 5-year population of France in 2024 (default)
@@ -31,10 +37,8 @@ pop5 <- get_wpp_pop("France", n = 5)
 # disaggregate into single-year of age
 pop1 <- graduate_pop(pop5)
 
-# plot the average  of the 5-year pop and showing it
-# at the middle points of the age groups
-ages5 <- seq(2, length = nrow(pop5), by = 5)
-plot(ages5, pop5[, popF + popM]/5, type = "l", col = "blue",
+# plot the average of the 5-year pop at the middle of each age group
+plot(pop5[, age + 2], pop5[, popF + popM]/5, type = "l", col = "blue",
     main = "Population of France in 2024",
     xlab = "age", ylab = "Population (in thousands)")
 lines(pop1[, age], pop1[, popF + popM], col = "red")

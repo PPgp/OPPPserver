@@ -93,7 +93,7 @@ get_wpp_regions <- function(sort = TRUE) {
 #'     bty = "n", lty = c(1, 1, 2, 2), col = rep(c("red", "blue"), 2))
 #'
 get_wpp_pop <- function(country, year = 2024, n = 1){
-    name <- NULL # to satisfy R check
+    name <- age <- agecat <- age1 <- popM <- popF <- NULL # to satisfy R check
     if(!n %in% c(1, 5)) stop("Argument n must be 1 or 5")
     yr <- year # need to rename because a collision with the column name "year"
     pop <- get_wpp("popAge1dt") # load observed data
@@ -105,7 +105,8 @@ get_wpp_pop <- function(country, year = 2024, n = 1){
         # aggregate to 5-year age groups
         age5 <- get_wpp("age5categories")
         pop_res <- merge(pop_res, age5[, list(age1, agecat, age5 = age)], by.x = "age", by.y = "age1", sort = FALSE)
-        pop_res <- pop_res[, .(popM = sum(popM), popF = sum(popF)), by = c("agecat", "age5")][, agecat := NULL]
+        pop_res <- pop_res[, list(popM = sum(popM), popF = sum(popF)), by = c("agecat", "age5")][, age5 := NULL]
+        setnames(pop_res, "agecat", "age")
     }
     return(pop_res)
 }
