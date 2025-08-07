@@ -217,3 +217,41 @@ align_oag <- function(pop, pop_standard, ...){
     }
     return(pop)
 }
+
+#' @title Aggregating Population to 5-year Age Groups
+#' @description Sums population counts from 1-year to 5-year age groups.
+#' 
+#' @param pop1 Data table with population data in single year ages. 
+#'     It should have a column \dQuote{age}. Any additional columns are 
+#'     considered as population counts to be aggregated.
+#' @param pop_columns Character vector of columns of the \code{pop1} dataset to agregate. 
+#'     By default, all columns that are not called \dQuote{age} are used.
+#'     
+#' @return Data table with the same columns as in the \code{pop1} dataset 
+#'     (or defined by \code{pop_columns}), 
+#'     with age groups (rows) aggregated into 5-year age groups. 
+#'     
+#' @export
+#' 
+#' @examples
+#' # extract 1-year and 5-year population of Brazil in 2020
+#' pop1 <- get_wpp_pop("Brazil", n = 1, year = 2020)
+#' pop5 <- get_wpp_pop("Brazil", n = 5, year = 2020)
+#' 
+#' # decrease female population of age 21 by 500
+#' pop1[age == 21, popF := popF - 500]
+#' 
+#' # aggregate to 5-year age groups
+#' pop5new <- sum_to_pop5(pop1)
+#' 
+#' # check that the age group 20-24 is 500 less than the original
+#' pop5[age == 20, popF] - pop5new[age == 20, popF] == 500
+#' 
+sum_to_pop5 <- function(pop1, pop_columns = NULL){
+    if(is.null(pop_columns)) pop_columns <- setdiff(colnames(pop1), "age")
+    age5 <- get_wpp("age5categories")
+    pop_res <- merge(pop1, age5[, list(age1, agecat, age5 = age)], by.x = "age", by.y = "age1", sort = FALSE)
+    pop_res <- pop_res[, lapply(.SD, sum), by = c("agecat", "age5"), .SDcols = pop_columns][, age5 := NULL]
+    setnames(pop_res, "agecat", "age")
+    return(pop_res)
+}

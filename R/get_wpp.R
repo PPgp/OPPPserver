@@ -99,17 +99,13 @@ get_wpp_pop <- function(country, year = 2024, n = 1){
     pop <- get_wpp("popAge1dt") # load observed data
     if(nrow(pop[year == yr]) == 0)
         pop <- get_wpp("popprojAge1dt") # load projected data
-    pop_res <- pop[name == country & as.integer(year) == yr, c("age", "popF", "popM"), with = FALSE]
+    pop_res <- pop[name == country & as.integer(year) == yr, c("age", "popM", "popF"), with = FALSE]
     if(nrow(pop_res) == 0) stop("Either ", country, " or year ", yr, " not available in the WPP data.")
-    if(n == 5){
-        # aggregate to 5-year age groups
-        age5 <- get_wpp("age5categories")
-        pop_res <- merge(pop_res, age5[, list(age1, agecat, age5 = age)], by.x = "age", by.y = "age1", sort = FALSE)
-        pop_res <- pop_res[, list(popM = sum(popM), popF = sum(popF)), by = c("agecat", "age5")][, age5 := NULL]
-        setnames(pop_res, "agecat", "age")
-    }
+    if(n == 5)
+        pop_res <- sum_to_pop5(pop_res, pop_columns = c("popM", "popF"))
     return(pop_res)
 }
+
 
 #' @title Country-specific WPP total fertility rate
 #'
