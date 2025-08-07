@@ -4,7 +4,13 @@
 \alias{graduate_pop}
 \title{Graduating Population from Five- to Single-Year Ages}
 \usage{
-graduate_pop(pop, method = "beers(ord)", pop_columns = NULL)
+graduate_pop(
+  pop,
+  method = "un",
+  country = NULL,
+  year = 2023,
+  pop_columns = NULL
+)
 }
 \arguments{
 \item{pop}{Data table with population data aggregated to 5-year age groups. 
@@ -12,8 +18,18 @@ The only required column is \dQuote{age} with starting values of the age groups,
 i.e. 0, 5, 10, \dots.  Any additional columns are considered as population 
 values to be disaggregated.}
 
-\item{method}{Method to use in the \code{\link[DemoTools]{graduate}} function 
-of the \pkg{DemoTools} package.}
+\item{method}{Method to use. By default (method \dQuote{un}), the disaggregation is 
+performed by scaling proportionally to the WPP population counts for the given country and year. 
+Other methods to use are one of 
+\dQuote{sprague}, \dQuote{beers(ord)}, \dQuote{beers(mod)}, \dQuote{grabill}, 
+\dQuote{pclm}, \dQuote{mono}, \dQuote{uniform}. In this case, the disaggregation is done
+via the \code{\link[DemoTools]{graduate}} function of the \pkg{DemoTools} package.}
+
+\item{country}{Name of the country to use as standard for the population disaggregation. Only used if \code{method}
+is \dQuote{un}.}
+
+\item{year}{Which year should be used for extracting the population schedules. 
+Only used if \code{method} is \dQuote{un}.}
 
 \item{pop_columns}{Character vector of columns of the \code{pop} dataset to graduate. 
 By default, all columns that are not called \dQuote{age} are used.}
@@ -27,22 +43,36 @@ Data table with the same columns as in the \code{pop} dataset
 The function disaggregates the input population from 5-year to 1-year ages.
 }
 \details{
-The function applies the \pkg{DemoTools} function \code{\link[DemoTools]{graduate}}
-    on all population columns of the \code{pop} dataset and returns the disaggregated dataset.
+The function applies the given method (either \dQuote{un} scaling or the
+    \code{DemoTools::\link[DemoTools]{graduate}} function)
+    on all population columns of the \code{pop} dataset and returns the disaggregated 
+    dataset.
 }
 \examples{
-# extract 5-year population of France in 2024 (default)
+# extract 5-year and 1-year population of France in 2024 (default)
 pop5 <- get_wpp_pop("France", n = 5)
+pop1 <- get_wpp_pop("France", n = 1)
 
-# disaggregate into single-year of age
-pop1 <- graduate_pop(pop5)
+# decrease the count in the first male 5-year age group 
+pop5[age == 0, popM := popM/2]
 
-# plot the average of the 5-year pop at the middle of each age group
-plot(pop5[, age + 2], pop5[, popF + popM]/5, type = "l", col = "blue",
+# increase the count in age groups 60+
+pop5[age >= 60, popM := 1.3*popM]
+
+# disaggregate into single-year of age using the default un method
+pop1un <- graduate_pop(pop5, country = "France", year = 2024)
+
+# disaggregate using beers(ord)
+pop1be <- graduate_pop(pop5, method = "beers(ord)")
+
+# compare results (original data vs disaggregation of modified data)
+plot(pop1[, age], pop1[, popM], type = "l", 
+    ylim = range(pop1[, popM], pop1be[, popM]),
     main = "Population of France in 2024",
     xlab = "age", ylab = "Population (in thousands)")
-lines(pop1[, age], pop1[, popF + popM], col = "red")
-legend("bottomleft", legend = c("original / 5", "graduated"),
-    bty = "n", lty = 1, col = c("blue", "red"))
+lines(pop1un[, age], pop1un[, popM], col = "red")
+lines(pop1be[, age], pop1be[, popM], col = "green")
+legend("bottomleft", legend = c("WPP", "un", "beers(ord)"),
+    bty = "n", lty = 1, col = c("black", "red", "green"))
 
 }

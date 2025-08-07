@@ -6,41 +6,77 @@
 #'     The only required column is \dQuote{age} with starting values of the age groups,
 #'     i.e. 0, 5, 10, \dots.  Any additional columns are considered as population 
 #'     values to be disaggregated.
-#' @param method Method to use in the \code{\link[DemoTools]{graduate}} function 
-#'     of the \pkg{DemoTools} package.
+#' @param method Method to use. By default (method \dQuote{un}), the disaggregation is 
+#'      performed by scaling proportionally to the WPP population counts for the given country and year. 
+#'      Other methods to use are one of 
+#'      \dQuote{sprague}, \dQuote{beers(ord)}, \dQuote{beers(mod)}, \dQuote{grabill}, 
+#'      \dQuote{pclm}, \dQuote{mono}, \dQuote{uniform}. In this case, the disaggregation is done
+#'      via the \code{\link[DemoTools]{graduate}} function of the \pkg{DemoTools} package.
+#' @param country Name of the country to use as standard for the population disaggregation. Only used if \code{method}
+#'     is \dQuote{un}.
+#' @param year Which year should be used for extracting the population schedules. 
+#'     Only used if \code{method} is \dQuote{un}.
 #' @param pop_columns Character vector of columns of the \code{pop} dataset to graduate. 
 #'     By default, all columns that are not called \dQuote{age} are used.
-#' 
+#'
 #' @return Data table with the same columns as in the \code{pop} dataset 
 #'     (or defined by \code{pop_columns}), 
 #'     with age groups (rows) disaggregated into single-year ages. 
 #'     
-#' @details The function applies the \pkg{DemoTools} function \code{\link[DemoTools]{graduate}}
-#'     on all population columns of the \code{pop} dataset and returns the disaggregated dataset.
+#' @details The function applies the given method (either \dQuote{un} scaling or the
+#'     \code{DemoTools::\link[DemoTools]{graduate}} function)
+#'     on all population columns of the \code{pop} dataset and returns the disaggregated 
+#'     dataset.
 #' 
 #' @export
 #' 
 #' @examples
-#' # extract 5-year population of France in 2024 (default)
+#' # extract 5-year and 1-year population of France in 2024 (default)
 #' pop5 <- get_wpp_pop("France", n = 5)
+#' pop1 <- get_wpp_pop("France", n = 1)
 #' 
-#' # disaggregate into single-year of age
-#' pop1 <- graduate_pop(pop5)
+#' # decrease the count in the first male 5-year age group 
+#' pop5[age == 0, popM := popM/2]
 #' 
-#' # plot the average of the 5-year pop at the middle of each age group
-#' plot(pop5[, age + 2], pop5[, popF + popM]/5, type = "l", col = "blue",
+#' # increase the count in age groups 60+
+#' pop5[age >= 60, popM := 1.3*popM]
+#' 
+#' # disaggregate into single-year of age using the default un method
+#' pop1un <- graduate_pop(pop5, country = "France", year = 2024)
+#' 
+#' # disaggregate using beers(ord)
+#' pop1be <- graduate_pop(pop5, method = "beers(ord)")
+#' 
+#' # compare results (original data vs disaggregation of modified data)
+#' plot(pop1[, age], pop1[, popM], type = "l", 
+#'     ylim = range(pop1[, popM], pop1be[, popM]),
 #'     main = "Population of France in 2024",
 #'     xlab = "age", ylab = "Population (in thousands)")
-#' lines(pop1[, age], pop1[, popF + popM], col = "red")
-#' legend("bottomleft", legend = c("original / 5", "graduated"),
-#'     bty = "n", lty = 1, col = c("blue", "red"))
+#' lines(pop1un[, age], pop1un[, popM], col = "red")
+#' lines(pop1be[, age], pop1be[, popM], col = "green")
+#' legend("bottomleft", legend = c("WPP", "un", "beers(ord)"),
+#'     bty = "n", lty = 1, col = c("black", "red", "green"))
 #' 
-graduate_pop <- function(pop, method = "beers(ord)", pop_columns = NULL){
+graduate_pop <- function(pop, method = "un", country = NULL, year = 2023,
+                         pop_columns = NULL){
     age <- agecat <- age1 <- NULL
     age5to1cat <- get_wpp("age5categories")
     age5 <- unique(age5to1cat[, list(agecat, age)])
     pop_res <- age5to1cat[age1 <= max(pop[["age"]]), list(age = age1)]
     if(is.null(pop_columns)) pop_columns <- setdiff(colnames(pop), "age")
+    if(method == "un"){
+        if(is.null(country)) 
+            stop("Argument 'country' must be given when using the 'un' method.")
+        pop_full <- get_wpp_pop(country, year, n = 1)
+        pop_full <- align_oag(pop_full, pop, country = country, year = year)
+        for(col in pop_columns){
+            valini <- sum(pop[[col]]) * pop_full[[col]]/sum(pop_full[[col]])
+            val <- DemoTools::rescaleAgeGroups(valini, AgeInt1 = rep(1, length(valini)),
+                                               Value2 = pop[[col]], AgeInt2 = c(rep(5, length(pop[[col]])-1), 1))
+            pop_res[[col]] <- as.vector(val)
+        }
+        return(pop_res)
+    } 
     for(col in pop_columns){
         val <- DemoTools::graduate(pop[[col]], Age = pop[["age"]], 
                                    method = method, constrain = TRUE, OAG = TRUE)
@@ -170,4 +206,14 @@ extend_oag <- function(pop, country, year = 2023, oag_new = 100, n = 1){
                                                  StAge = pop_full[["age"]], OAnew = oag_new)
     }
     return(pop_res)
+}
+
+align_oag <- function(pop, pop_standard, ...){
+    if(max(pop_standard[["age"]]) < max(pop[["age"]]))
+        pop <- reduce_oag(pop, oag_new = max(pop_standard[["age"]]))
+    else {
+        if(max(pop_standard[["age"]]) > max(pop[["age"]]))
+            pop <- extend_oag(pop, oag_new = max(pop_standard[["age"]]), ...)
+    }
+    return(pop)
 }
