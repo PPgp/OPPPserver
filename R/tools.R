@@ -248,10 +248,101 @@ align_oag <- function(pop, pop_standard, ...){
 #' pop5[age == 20, popF] - pop5new[age == 20, popF] == 500
 #' 
 sum_to_pop5 <- function(pop1, pop_columns = NULL){
+    age1 <- agecat <- age <- NULL
     if(is.null(pop_columns)) pop_columns <- setdiff(colnames(pop1), "age")
     age5 <- get_wpp("age5categories")
     pop_res <- merge(pop1, age5[, list(age1, agecat, age5 = age)], by.x = "age", by.y = "age1", sort = FALSE)
     pop_res <- pop_res[, lapply(.SD, sum), by = c("agecat", "age5"), .SDcols = pop_columns][, age5 := NULL]
     setnames(pop_res, "agecat", "age")
     return(pop_res)
+}
+
+#' @title Moving Population Counts to Specified Date
+#' @description Shifts given population from a given date to a later date.
+#' 
+#' @param pop Data table with population data in single year ages. 
+#'     It should have a column \dQuote{age}, \dQuote{popM} (male population) and 
+#'     \dQuote{popF} (female population).
+#' @param country Name of the country to which the data belong to. It is used to 
+#'     extract other demographic indicators (fertility, mortality, migration).
+#' @param initial_date Character string of the form \dQuote{YYYY-MM-DD}, specifying the date
+#'     assigned to the given population data \code{pop}. 
+#' @param desired_date Character string of the form \dQuote{YYYY-MM-DD}, specifying the date
+#'     to which the \code{pop} dataset should be moved to. By default,
+#'     it is December 31 of the year given by the argument \code{year}.
+#' @param year Integer specifying the year of the population counts. Together 
+#'     with the \code{country} argument it is used for extracting vital rates from WPP.
+#' 
+#' @return Data table with columns \dQuote{age}, \dQuote{popM} and \dQuote{popF} 
+#'     in which the population counts have been shifted to the desired date.
+#'     
+#' @details The function extracts age-specific fertility, mortality and net migration
+#'     for the given country and year from the WPP datasets and shifts the given population counts 
+#'     to the desired date by performing population projections using the exponential growth method.
+#'     
+#' @export
+#' 
+#' @examples
+#' 
+#' # extract 1-year population of Sweden in 2024
+#' pop_start <- get_wpp_pop("Sweden", n = 1, year = 2024)
+#' 
+#' # pretend this data is from January 1 2025
+#' # -> shift to December 31 (default desired_date)
+#' pop_end <- move_pop(pop_start, "Sweden", "2025-01-01", year = 2025)
+#' 
+#' # compare with WPP projection from Dec 31, 2025
+#' pop_wpp <- get_wpp_pop("Sweden", n = 1, year = 2025)
+#' 
+#' res <- data.frame(start = pop_start[, sum(popM + popF)],
+#'                   end = pop_end[, sum(popM + popF)],
+#'                   wpp = pop_wpp[, sum(popM + popF)])
+#' print(res)
+#' 
+move_pop <- function(pop, country, initial_date, desired_date = NULL, year = 2023){
+    popM <- popF <- births <- i.popF <- i.popM <- mxM <- mxF <- deaths <- mig <- age <- NULL
+    # Calculate time difference
+    if(is.null(desired_date))
+        desired_date <- paste0(year, "-12-31")
+    time_diff <- decimal_date(as.Date(desired_date)) - decimal_date(as.Date(initial_date))
+    if(time_diff < 0) 
+        stop("initial_date must be earlier than ", desired_date)
+    
+    # Calculate total initial population
+    total_pop_initial <- sum(pop[, list(popM + popF)])
+    
+    # calculate births
+    asfr <- get_wpp_asfr(country, start_year = year, end_year = year)[, year := NULL]
+    asfr[pop, births := i.popF * asfr, on = c("age")]
+    total_births <- sum(asfr[, births])
+    
+    # calculate deaths
+    mx <- get_wpp_mx(country, start_year = year, end_year = year)[, year := NULL]
+    mx[pop, `:=`(deaths = i.popM * mxM + i.popF * mxF), on = "age"]
+    total_deaths <- sum(mx[, deaths])
+    
+    # get net migration
+    yr <- year # to avoid confusion with the column name "year"
+    annual_net_migrants <- get_wpp_mig(country)[year == yr, mig]
+    
+    # Calculate vital rates
+    crude_birth_rate <- total_births / total_pop_initial
+    crude_death_rate <- total_deaths / total_pop_initial
+    net_migration_rate <- annual_net_migrants / total_pop_initial
+    growth_rate <- crude_birth_rate - crude_death_rate + net_migration_rate
+    
+    # Calculate TFR (Total Fertility Rate)
+    tfr <- sum(asfr[, asfr])
+    
+    # Project total population to desired date using exponential growth
+    total_pop_projected <- total_pop_initial * exp(growth_rate * time_diff)
+    
+    # Calculate adjustment factor
+    adjustment_factor <- total_pop_projected / total_pop_initial
+    
+    # Apply adjustment factor to get projected population by age and sex
+    popres <- pop[, list(age, popM = round(popM * adjustment_factor, 3), 
+                        popF = round(popF * adjustment_factor, 3))]
+    
+    return(popres)
 }

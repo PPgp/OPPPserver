@@ -242,3 +242,24 @@ get_wpp_pop_by_age_multiple_years <- function(un_code, end_year = NULL){
 get_wpp_pop_multiple_years <- function(un_code, end_year = NULL){
     return(get_wpp_indicator_multiple_years("pop1dt", "popproj1dt", un_code = un_code, end_year = end_year))
 }
+
+get_wpp_asfr <- function(country, start_year = NULL, end_year = NULL){
+    name <- i.tfr <- age <- NULL
+    pasfr <- get_wpp("percentASFR1dt")
+    pasfr <- pasfr[name == country]
+    tfr <- get_wpp_tfr(country)
+    pasfr[tfr, tfr:= i.tfr, on = c("year")][, asfr := pasfr/100 * tfr]
+    asfr <- pasfr[, list(year, age, asfr)]
+    if(!is.null(start_year)) asfr <- asfr[year >= start_year]
+    if(!is.null(end_year)) asfr <- asfr[year <= end_year]
+    return(asfr)
+}
+
+get_wpp_mx <- function(country, start_year = NULL, end_year = NULL){
+    name <- mxM <- mxF <- age <- NULL
+    mx <- get_wpp("mx1dt")
+    mx <- mx[name == country]
+    if(!is.null(start_year)) mx <- mx[year >= start_year]
+    if(!is.null(end_year)) mx <- mx[year <= end_year]
+    return(mx[, list(year, age, mxM, mxF)])
+}
