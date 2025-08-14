@@ -14,7 +14,9 @@ run_forecast(
   e0 = NULL,
   mig = NULL,
   units = 1000,
-  output_dir = NULL,
+  simulation_name = NULL,
+  output_dir = tempdir(),
+  keep_sim_dir = FALSE,
   ...
 )
 
@@ -43,8 +45,14 @@ the dataset returned by \code{\link{get_wpp_mig}}. By default the UN data is use
 \item{units}{Scale of the output data. By default a simulation results are given in thousands.
 If for example one would like to see results in millions, set \code{unit = 1e6}.}
 
-\item{output_dir}{Directory where the prediction object should be stored. If \code{NULL} 
-a temporary directory is used which is removed after the simulation is finished.}
+\item{simulation_name}{Character string to be used to name this forecast. It is used to 
+construct the name of the simulation directory. If \code{NULL} a random name is used.}
+
+\item{output_dir}{Base directory where the prediction object should be stored. The full name of the 
+simulation directory is  \code{output_dir/simulation_name}.}
+
+\item{keep_sim_dir}{Logical. If \code{FALSE} (default) the simulation directory
+is removed after the simulation is finished.}
 
 \item{\dots}{Additional arguments passed to the \code{\link[bayesPop]{pop.predict}} 
 function of \pkg{bayesPop}.}
@@ -97,8 +105,9 @@ List with elements:
              (\code{e0}) and the UN median of the same two quantities (columns \code{un_cdr_median}, \code{un_e0_median}).}
      \item{cbr_by_tfr}{Data table with the forecast of the crude birth rate (\code{cbr}), total fertility rate
              (\code{tfr}) and the UN median of the same two quantities (columns \code{un_cbr_median}, \code{un_tfr_median}).}
-     \item{prediction}{\code{\link[bayesPop]{bayesPop.prediction}} object. Only returned if \code{output_dir}
-             is not \code{NULL}.}
+     \item{country, units}{Values of the input arguments of the same name.}
+     \item{output_dir, simulation_name}{Two parts of the directory name where the resulting \code{\link[bayesPop]{bayesPop.prediction}} object is stored. 
+             Only returned if \code{keep_sim_dir} is \code{TRUE}. Otherwise the directory doesn't exist.}
      
 }
 }
@@ -117,9 +126,9 @@ The \code{run_forecast} function launches population prediction for the given co
     projection, with one trajectory of all, TFR, life expectancy and migration.
     
     If it is desired to preserve the resulting 
-    \code{\link[bayesPop]{bayesPop.prediction}} object, argument \code{output_dir} should be given. 
-    In such a case, the prediction object is returned. Otherwise a temporary directory is used and
-    it is deleted after results are collected. For a manual deletion of the simulation directory, one can use
+    \code{\link[bayesPop]{bayesPop.prediction}} object, argument \code{keep_sim_dir} should be set to \code{TRUE}. 
+    Otherwise the simulation directory is deleted after results are collected. 
+    For a manual deletion of the simulation directory, one can use
     the function \code{remove_forecast()} while passing the object returned by \code{run_forecast}.
 }
 \examples{

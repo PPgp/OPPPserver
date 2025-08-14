@@ -16,8 +16,12 @@
 #'     the dataset returned by \code{\link{get_wpp_mig}}. By default the UN data is used.
 #' @param units Scale of the output data. By default a simulation results are given in thousands.
 #'     If for example one would like to see results in millions, set \code{unit = 1e6}.
-#' @param output_dir Directory where the prediction object should be stored. If \code{NULL} 
-#'     a temporary directory is used which is removed after the simulation is finished.
+#' @param simulation_name Character string to be used to name this forecast. It is used to 
+#'     construct the name of the simulation directory. If \code{NULL} a random name is used.
+#' @param output_dir Base directory where the prediction object should be stored. The full name of the 
+#'     simulation directory is  \code{output_dir/simulation_name}.
+#' @param keep_sim_dir Logical. If \code{FALSE} (default) the simulation directory  
+#'     is removed after the simulation is finished. 
 #' @param \dots Additional arguments passed to the \code{\link[bayesPop]{pop.predict}} 
 #'     function of \pkg{bayesPop}.
 #'
@@ -64,8 +68,9 @@
 #'              (\code{e0}) and the UN median of the same two quantities (columns \code{un_cdr_median}, \code{un_e0_median}).}
 #'      \item{cbr_by_tfr}{Data table with the forecast of the crude birth rate (\code{cbr}), total fertility rate
 #'              (\code{tfr}) and the UN median of the same two quantities (columns \code{un_cbr_median}, \code{un_tfr_median}).}
-#'      \item{prediction}{\code{\link[bayesPop]{bayesPop.prediction}} object. Only returned if \code{output_dir}
-#'              is not \code{NULL}.}
+#'      \item{country, units}{Values of the input arguments of the same name.}
+#'      \item{output_dir, simulation_name}{Two parts of the directory name where the resulting \code{\link[bayesPop]{bayesPop.prediction}} object is stored. 
+#'              Only returned if \code{keep_sim_dir} is \code{TRUE}. Otherwise the directory doesn't exist.}
 #'      
 #' }
 #' @details The \code{run_forecast} function launches population prediction for the given country via the \code{\link[bayesPop]{pop.predict}} 
@@ -79,9 +84,9 @@
 #'     projection, with one trajectory of all, TFR, life expectancy and migration.
 #'     
 #'     If it is desired to preserve the resulting 
-#'     \code{\link[bayesPop]{bayesPop.prediction}} object, argument \code{output_dir} should be given. 
-#'     In such a case, the prediction object is returned. Otherwise a temporary directory is used and
-#'     it is deleted after results are collected. For a manual deletion of the simulation directory, one can use
+#'     \code{\link[bayesPop]{bayesPop.prediction}} object, argument \code{keep_sim_dir} should be set to \code{TRUE}. 
+#'     Otherwise the simulation directory is deleted after results are collected. 
+#'     For a manual deletion of the simulation directory, one can use
 #'     the function \code{remove_forecast()} while passing the object returned by \code{run_forecast}.
 #'
 #' @examples
@@ -148,7 +153,8 @@
 
 run_forecast <- function(country, start_year = 2024, end_year = 2100,
                          pop = NULL, tfr = NULL, e0 = NULL, mig = NULL, 
-                         units = 1000, output_dir = NULL, ...){
+                         units = 1000, simulation_name = NULL, 
+                         output_dir = tempdir(), keep_sim_dir = FALSE, ...){
 
     code <- get_country_code(country)
     if(length(code) == 0) stop("Country ", country, " not found.")
@@ -160,7 +166,11 @@ run_forecast <- function(country, start_year = 2024, end_year = 2100,
     mig_file <- prepare_mig(mig, country, code, start_year)
 
     # simulation directory
-    sim_dir <- if(is.null(output_dir)) tempdir() else output_dir
+    if(is.null(output_dir)) output_dir <- tempdir()
+    if(is.null(simulation_name)) {
+        simulation_name <- tempfile(pattern = "pop_forecast", tmpdir = "")
+    }
+    sim_dir <- file.path(output_dir, simulation_name)
 
     # launch simulation
     ###################
@@ -177,13 +187,29 @@ run_forecast <- function(country, start_year = 2024, end_year = 2100,
                         replace.output = TRUE, ...
                         )
 
+    # collect results
+    #################
+    results <- collect_prediction_results(pred, code = code, units = units)
+    
+    # cleanup
+    ##########
+    unlink(c(pop_files, tfr_file))
+    if(! keep_sim_dir) unlink(sim_dir, recursive = TRUE)
+
+    results[["country"]] <- country
+    if(keep_sim_dir){
+        results[["output_dir"]] <- output_dir
+        results[["simulation_name"]] <- simulation_name
+    }
+    return(results)
+}
+
+collect_prediction_results <- function(pred, code, units = 1000){
     # In order not to copy the pred object every time we need it in a function,
     # we put it into an environment that acts as a pointer
     pred_env <- new.env()
     pred_env[["prediction"]] <- pred
     
-    # collect results
-    #################
     pop_by_age_sex <- extract_pop_by_age_sex(pred_env, units = units)
     pop_by_broad_age <- get_pop_by_broad_age(pop_by_age_sex)
     pop_by_time <- get_pop_by_time(pop_by_age_sex, code)
@@ -198,12 +224,7 @@ run_forecast <- function(country, start_year = 2024, end_year = 2100,
     pop_aging_vs_size <- get_pop_aging_and_size(pop_by_time)
     cdr_vs_e0 <- extract_e0_get_cdr(pred_env, deaths)
     cbr_vs_tfr <- get_tfr_cbr(tfr_by_time, births)
-
-    # cleanup
-    ##########
-    unlink(c(pop_files, tfr_file))
-    if(is.null(output_dir)) unlink(sim_dir, recursive = TRUE)
-
+    
     return(list(population_by_age_and_sex = pop_by_age_sex,
                 population_by_broad_age_group = pop_by_broad_age,
                 population_by_time = pop_by_time,
@@ -218,11 +239,47 @@ run_forecast <- function(country, start_year = 2024, end_year = 2100,
                 pop_aging_and_pop_size = pop_aging_vs_size,
                 cdr_by_e0 = cdr_vs_e0,
                 cbr_by_tfr = cbr_vs_tfr,
-                prediction = if(!is.null(output_dir)) pred else NULL
-                )
-           )
+                units = units
+    ))
 }
 
+#' @title Load Existing Population Forecast
+#' @description Loads forecast results from a directory given by name
+#'     and returns the same datasets as the \code{\link{run_forecast}} function.
+#'     
+#' @param country Name of country.
+#' @param simulation_name Character string to identify the forecast to load. It is used to 
+#'     construct the name of the simulation directory from which the prediction will be extracted.
+#' @param output_dir Base directory where the prediction object is assumed to be stored. The full name of the 
+#'     simulation directory is  constructed as \code{output_dir/simulation_name}.
+#' @param units Scale of the output data. The same meaning as in \code{\link{run_forecast}}.
+#' 
+#' @export
+#' 
+#' @examples
+#' # Run a forecast (a random simulation name will be assigned)
+#' forecast <- run_forecast("Argentina", start_year = 2024, keep_sim_dir = TRUE)
+#' 
+#' # Load forecast of that name
+#' loaded_forecast <- load_forecast("Argentina", simulation_name = forecast$simulation_name,
+#'                                  output_dir = forecast$output_dir)
+#' 
+#' # They should be equal                                 
+#' identical(forecast, loaded_forecast)
+#' 
+#' # Remove the forecast
+#' remove_forecast(forecast)
+#' remove_forecast(loaded_forecast) # nothing to remove
+
+load_forecast <- function(country, simulation_name, output_dir = tempdir(), units = 1000){
+    pred <- get.pop.prediction(file.path(output_dir, simulation_name))
+    code <- get_country_code(country)
+    results <- collect_prediction_results(pred, code, units = units)
+    results[["country"]] <- country
+    results[["output_dir"]] <- output_dir
+    results[["simulation_name"]] <- simulation_name
+    return(results)
+}
 
 prepare_pop <- function(pop, un_code, start_year){
     # Stores population into two files (one for each sex)
@@ -725,9 +782,10 @@ get_tfr_cbr <- function(tfr, births){
 #' @param verbose Logical that switches log messages on and off.
 #' @export
 remove_forecast <- function(forecast, verbose = TRUE){
-    if(!is.null(forecast$prediction) && dir.exists(forecast$prediction$base.directory)){
-        unlink(forecast$prediction$base.directory, recursive = TRUE)
-        if(verbose) cat("\nPrediction directory", forecast$prediction$base.directory, "removed.\n")
+    if(!is.null(forecast$simulation_name) && 
+       dir.exists((dir <- file.path(forecast$output_dir, forecast$simulation_name)))){
+        unlink(dir, recursive = TRUE)
+        if(verbose) cat("\nPrediction directory", dir, "removed.\n")
     } else 
         if(verbose) cat("\nNothing to remove.\n")
 }
