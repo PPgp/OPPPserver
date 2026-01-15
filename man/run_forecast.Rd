@@ -79,6 +79,8 @@ List with elements:
           including the 95\% probability intervals (columns \code{year}, \code{sex}, \code{e0}, \code{un_e0_median}, 
          \code{un_e0_95low}, \code{un_e0_95high}).}
      \item{mig_by_time}{Data table with the migration forecast and the UN median.}
+     \item{asfr}{Data table with age-specific fertility rate as well as the UN values
+         (columns \code{year}, \code{age}, \code{asfr}, \code{un_asfr}).}
      \item{annual_growth_rate}{Data table with the forecast of annual growth rate as a percentage,
              computed as \eqn{log(P_t/P_{t-1})*100}, for the same age groups as in \code{population_by_time}
              (columns \code{year}, \code{age}, \code{growth_rate}).}
@@ -101,10 +103,14 @@ List with elements:
      \item{pop_aging_and_pop_size}{Data table with the forecast of percent population of 65+ (column \code{percent65}),
              total population (column \code{pop}) and the UN median of the same 
              two quantities (columns \code{un_pop_median}, \code{un_percen65}).}
-     \item{cdr_by_e0}{Data table with the forecast of the crude death rate (\code{cdr}), life expecancy at birth
+     \item{cdr_by_e0}{Data table with the forecast of the crude death rate (\code{cdr}), life expectancy at birth
              (\code{e0}) and the UN median of the same two quantities (columns \code{un_cdr_median}, \code{un_e0_median}).}
      \item{cbr_by_tfr}{Data table with the forecast of the crude birth rate (\code{cbr}), total fertility rate
              (\code{tfr}) and the UN median of the same two quantities (columns \code{un_cbr_median}, \code{un_tfr_median}).}
+     \item{life_table}{Data table with age-specific mortality rates and the corresponding life tables by year and sex.
+             Values for sex are "M" (male), "F" (female) and "T" (total). Columns include the standard 
+             life table column (\code{year}, \code{age}, \code{sex}, \code{mx}, \code{qx}, \code{lx}, 
+             \code{dx}, \code{Lx}, \code{sx}, \code{Tx}, \code{ex}, \code{ax}).}
      \item{country, units}{Values of the input arguments of the same name.}
      \item{output_dir, simulation_name}{Two parts of the directory name where the resulting \code{\link[bayesPop]{bayesPop.prediction}} object is stored. 
              Only returned if \code{keep_sim_dir} is \code{TRUE}. Otherwise the directory doesn't exist.}

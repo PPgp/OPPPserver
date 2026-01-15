@@ -6,5 +6,6 @@
 #' @importFrom utils data
 #' @importFrom stats approx
 #' @importFrom lubridate decimal_date
+#' @importFrom MortCast life.table
 #' @aliases OPPPserver-package
 "_PACKAGE"

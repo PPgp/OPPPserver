@@ -42,6 +42,8 @@
 #'           including the 95\% probability intervals (columns \code{year}, \code{sex}, \code{e0}, \code{un_e0_median}, 
 #'          \code{un_e0_95low}, \code{un_e0_95high}).}
 #'      \item{mig_by_time}{Data table with the migration forecast and the UN median.}
+#'      \item{asfr}{Data table with age-specific fertility rate as well as the UN values
+#'          (columns \code{year}, \code{age}, \code{asfr}, \code{un_asfr}).}
 #'      \item{annual_growth_rate}{Data table with the forecast of annual growth rate as a percentage,
 #'              computed as \eqn{log(P_t/P_{t-1})*100}, for the same age groups as in \code{population_by_time}
 #'              (columns \code{year}, \code{age}, \code{growth_rate}).}
@@ -64,10 +66,14 @@
 #'      \item{pop_aging_and_pop_size}{Data table with the forecast of percent population of 65+ (column \code{percent65}),
 #'              total population (column \code{pop}) and the UN median of the same 
 #'              two quantities (columns \code{un_pop_median}, \code{un_percen65}).}
-#'      \item{cdr_by_e0}{Data table with the forecast of the crude death rate (\code{cdr}), life expecancy at birth
+#'      \item{cdr_by_e0}{Data table with the forecast of the crude death rate (\code{cdr}), life expectancy at birth
 #'              (\code{e0}) and the UN median of the same two quantities (columns \code{un_cdr_median}, \code{un_e0_median}).}
 #'      \item{cbr_by_tfr}{Data table with the forecast of the crude birth rate (\code{cbr}), total fertility rate
 #'              (\code{tfr}) and the UN median of the same two quantities (columns \code{un_cbr_median}, \code{un_tfr_median}).}
+#'      \item{life_table}{Data table with age-specific mortality rates and the corresponding life tables by year and sex.
+#'              Values for sex are "M" (male), "F" (female) and "T" (total). Columns include the standard 
+#'              life table column (\code{year}, \code{age}, \code{sex}, \code{mx}, \code{qx}, \code{lx}, 
+#'              \code{dx}, \code{Lx}, \code{sx}, \code{Tx}, \code{ex}, \code{ax}).}
 #'      \item{country, units}{Values of the input arguments of the same name.}
 #'      \item{output_dir, simulation_name}{Two parts of the directory name where the resulting \code{\link[bayesPop]{bayesPop.prediction}} object is stored. 
 #'              Only returned if \code{keep_sim_dir} is \code{TRUE}. Otherwise the directory doesn't exist.}
@@ -214,6 +220,7 @@ collect_prediction_results <- function(pred, code, units = 1000){
     pop_by_broad_age <- get_pop_by_broad_age(pop_by_age_sex)
     pop_by_time <- get_pop_by_time(pop_by_age_sex, code)
     tfr_by_time <- extract_tfr_by_time(pred_env)
+    asfr <- extract_asfr(pred_env)
     e0_by_time <- extract_e0_by_time(pred_env)
     mig_by_time <- extract_mig_by_time(pred_env)
     growth_rate <- get_annual_growth_rate(pop_by_time)
@@ -224,6 +231,7 @@ collect_prediction_results <- function(pred, code, units = 1000){
     pop_aging_vs_size <- get_pop_aging_and_size(pop_by_time)
     cdr_vs_e0 <- extract_e0_get_cdr(pred_env, deaths)
     cbr_vs_tfr <- get_tfr_cbr(tfr_by_time, births)
+    life_table <- extract_life_table(pred_env)
     
     return(list(population_by_age_and_sex = pop_by_age_sex,
                 population_by_broad_age_group = pop_by_broad_age,
@@ -231,6 +239,7 @@ collect_prediction_results <- function(pred, code, units = 1000){
                 tfr_by_time = tfr_by_time,
                 e0_by_time = e0_by_time,
                 mig_by_time = mig_by_time,
+                asfr = asfr,
                 annual_growth_rate = growth_rate,
                 births_counts_rates = births,
                 deaths_counts_rates = deaths,
@@ -239,6 +248,7 @@ collect_prediction_results <- function(pred, code, units = 1000){
                 pop_aging_and_pop_size = pop_aging_vs_size,
                 cdr_by_e0 = cdr_vs_e0,
                 cbr_by_tfr = cbr_vs_tfr,
+                life_table = life_table,
                 units = units
     ))
 }
@@ -584,6 +594,49 @@ extract_mig_by_time <- function(env) {
                                        )],
                 all = TRUE, by = "year")
     return(dt[!is.na(un_mig_median)])
+}
+
+extract_asfr <- function(env){
+    indicator <- trajectory <- year <- NULL # to satisfy CRAN check
+    country <- env$prediction$countries$code
+    # extract observed asfr
+    obs_df <- get.pop.exba(paste0("F", country, "_F{}"), env$prediction, observed = TRUE, 
+                           as.dt = TRUE)[!is.na(indicator)]
+    # extract predicted asfr
+    pred_df <- get.pop.exba(paste0("F", country, "_F{}"), env$prediction, observed = FALSE, 
+                            as.dt = TRUE)[!year %in% obs_df$year & !is.na(indicator)][, trajectory := NULL]
+    df <- rbind(obs_df, pred_df)
+    setnames(df, "indicator", "asfr")
+    # get WPP data
+    unasfr <- get_wpp_asfr(env$prediction$countries$name, min(df$year), max(df$year))
+    setnames(unasfr, "asfr", "un_asfr")
+    df <- merge(df, unasfr, by = c("year", "age"))
+    return(df)
+}
+
+extract_life_table <- function(env){
+    indicator <- trajectory <- age <- NULL # to satisfy CRAN check
+    country <- env$prediction$countries$code
+    dflt <- NULL
+    sexname <- list(M = "male", F = "female", T = "total")
+    for(s in names(sexname)){
+        sxsfx <- if(s == "T") "" else paste0("_", s)
+        # extract observed mx
+        obs_df <- get.pop.exba(paste0("M", country, sxsfx, "{}"), env$prediction, observed = TRUE, 
+                           as.dt = TRUE)[!is.na(indicator)]
+        # extract predicted mx
+        pred_df <- get.pop.exba(paste0("M", country, sxsfx, "{}"), env$prediction, observed = FALSE, 
+                                as.dt = TRUE)[!year %in% obs_df$year & !is.na(indicator)][, trajectory := NULL]
+        df <- rbind(obs_df, pred_df)
+        # get life tables for each year
+        for(yr in unique(df$year)){
+            lt <- MortCast::life.table(df[year == yr, indicator], sex = sexname[[s]], 
+                              abridged = FALSE, open.age = 100)
+            dflt <- rbind(dflt, data.table(lt)[, `:=`(year = yr, sex = s)])
+        }
+    }
+    setcolorder(dflt, c("year", "age", "sex"))
+    return(dflt[order(year, age)])
 }
 
 get_annual_growth_rate <- function(pop){
