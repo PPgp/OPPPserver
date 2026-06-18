@@ -27,10 +27,13 @@
 #'
 #' @return List with elements:
 #' \describe{
-#'     \item{population_by_age_and_sex}{Data table with age- and sex-specific population by time
-#'          (columns \code{year}, \code{age}, \code{popM}, \code{popF}).}
+#'     \item{population_by_age_and_sex}{Data table with age- and sex-specific population by time.
+#'          It also contains the UN median
+#'          (columns \code{year}, \code{age}, \code{popM}, \code{popF},
+#'          \code{un_popM_median}, \code{un_popF_median}).}
 #'      \item{population_by_broad_age_group}{Data table where population is grouped by broader age groups.
-#'          (columns \code{year}, \code{age}, \code{pop}, \code{pop_percent}).}
+#'          It also contains the UN median
+#'          (columns \code{year}, \code{age}, \code{pop}, \code{pop_percent}, \code{un_pop_median}).}
 #'      \item{population_by_time}{Data table where with total population as well as by broader age groups.
 #'          It also contains the UN median and the 95\% probability intervals 
 #'          (columns \code{year}, \code{age}, \code{pop}, \code{un_pop_median}, 
@@ -45,8 +48,9 @@
 #'      \item{asfr}{Data table with age-specific fertility rate as well as the UN values
 #'          (columns \code{year}, \code{age}, \code{asfr}, \code{un_asfr}).}
 #'      \item{annual_growth_rate}{Data table with the forecast of annual growth rate as a percentage,
-#'              computed as \eqn{log(P_t/P_{t-1})*100}, for the same age groups as in \code{population_by_time}
-#'              (columns \code{year}, \code{age}, \code{growth_rate}).}
+#'              computed as \eqn{log(P_t/P_{t-1})*100}, for the same age groups as in \code{population_by_time}.
+#'              It also contains the UN median
+#'              (columns \code{year}, \code{age}, \code{growth_rate}, \code{un_growth_rate_median}).}
 #'      \item{births_counts_rates}{Data table with the forecast of total births (column \code{births}),
 #'              crude birth rate (\code{cbr}) and the UN median and 95\% probability intervals 
 #'              of the respective quantities
@@ -215,15 +219,60 @@ collect_prediction_results <- function(pred, code, units = 1000){
     # we put it into an environment that acts as a pointer
     pred_env <- new.env()
     pred_env[["prediction"]] <- pred
-    
+
+    # UN reference data reused below to add un_*_median columns to the three
+    # by-age outputs. Mirrors the un_* columns already on population_by_time /
+    # tfr_by_time / e0_by_time / mig_by_time so the OPPP UI can overlay WPP-2024
+    # on the population pyramid, broad-age and growth-rate charts.
+    # TODO(hana): add 95% PI columns (un_*_95low / un_*_95high) via bayesPop's
+    # quantiles{M,F}age object, mirroring the PI logic already in get_pop_by_time().
+    age <- popM <- popF <- year <- NULL # to satisfy CRAN check
+    un_pop_by_age_raw <- get_wpp_pop_by_age_multiple_years(code)
+    # Cap the open age group at 100+ to match extract_pop_by_age_sex(), which
+    # aggregates ages above 100 into 100 before returning.
+    un_pop_by_age_sex <- copy(un_pop_by_age_raw)[
+        , age := pmin(as.integer(age), 100L)][
+        , list(popM = sum(popM), popF = sum(popF)), by = c("year", "age")]
+
     pop_by_age_sex <- extract_pop_by_age_sex(pred_env, units = units)
+    # Merge UN reference median onto pop_by_age_sex.
+    i.un_popM_median <- i.un_popF_median <- un_popM_median <- un_popF_median <- NULL # CRAN check
+    un_for_age_sex <- un_pop_by_age_sex[, list(year, age,
+                                               un_popM_median = popM,
+                                               un_popF_median = popF)]
+    pop_by_age_sex[un_for_age_sex,
+                   `:=`(un_popM_median = i.un_popM_median,
+                        un_popF_median = i.un_popF_median),
+                   on = c("year", "age")]
+
     pop_by_broad_age <- get_pop_by_broad_age(pop_by_age_sex)
+    # Merge UN reference median onto pop_by_broad_age.
+    i.un_pop_median <- un_pop_median <- pop <- NULL # CRAN check
+    un_broad_age <- get_pop_by_broad_age(un_pop_by_age_sex,
+                                         compute_percent = FALSE)
+    pop_by_broad_age[un_broad_age,
+                     un_pop_median := i.pop, on = c("year", "age")]
+
     pop_by_time <- get_pop_by_time(pop_by_age_sex, code)
     tfr_by_time <- extract_tfr_by_time(pred_env)
     asfr <- extract_asfr(pred_env)
     e0_by_time <- extract_e0_by_time(pred_env)
     mig_by_time <- extract_mig_by_time(pred_env)
     growth_rate <- get_annual_growth_rate(pop_by_time)
+    # Merge UN reference median onto annual_growth_rate. Build a UN equivalent
+    # of pop_by_time (Total / broad age groups / 65+) the same way
+    # get_pop_by_time() does, then run it through get_annual_growth_rate().
+    i.growth_rate <- un_growth_rate_median <- growth_rate_un <- NULL # CRAN check
+    un_pop_by_time <- rbind(
+        get_pop_by_broad_age(un_pop_by_age_sex, age_groups = c(0, 150),
+                             compute_percent = FALSE, oag_label = "Total"),
+        get_pop_by_broad_age(un_pop_by_age_sex, compute_percent = FALSE),
+        get_pop_by_broad_age(un_pop_by_age_sex[age >= 65],
+                             age_groups = c(65, 150), compute_percent = FALSE)
+    )
+    un_growth_rate <- get_annual_growth_rate(un_pop_by_time)
+    growth_rate[un_growth_rate,
+                un_growth_rate_median := i.growth_rate, on = c("year", "age")]
     births <- extract_births(pred_env, units = units)
     deaths <- extract_deaths(pred_env, units = units)
     yadr <- extract_yadr(pred_env)
