@@ -64,11 +64,15 @@ function of \pkg{bayesPop}.}
 \value{
 List with elements:
 \describe{
-    \item{population_by_age_and_sex}{Data table with age- and sex-specific population by time
-         (columns \code{year}, \code{age}, \code{popM}, \code{popF}).}
+    \item{population_by_age_and_sex}{Data table with age- and sex-specific population by time.
+         It also contains the UN median
+         (columns \code{year}, \code{age}, \code{popM}, \code{popF},
+         \code{un_popM_median}, \code{un_popF_median}).}
      \item{population_by_broad_age_group}{Data table where population is grouped by broader age groups.
-         (columns \code{year}, \code{age}, \code{pop}, \code{pop_percent}).}
-     \item{population_by_time}{Data table where with total population as well as by broader age groups.
+         It also contains the UN median and the 95\% probability intervals 
+         (columns \code{year}, \code{age}, \code{pop}, \code{pop_percent}, \code{un_pop_median},
+         \code{un_pop_95low}, \code{un_pop_95high}).}
+     \item{population_by_time}{Data table with total population as well as population by broader age groups.
          It also contains the UN median and the 95\% probability intervals 
          (columns \code{year}, \code{age}, \code{pop}, \code{un_pop_median}, 
          \code{un_pop_95low}, \code{un_pop_95high}).}
@@ -82,8 +86,9 @@ List with elements:
      \item{asfr}{Data table with age-specific fertility rate as well as the UN values
          (columns \code{year}, \code{age}, \code{asfr}, \code{un_asfr}).}
      \item{annual_growth_rate}{Data table with the forecast of annual growth rate as a percentage,
-             computed as \eqn{log(P_t/P_{t-1})*100}, for the same age groups as in \code{population_by_time}
-             (columns \code{year}, \code{age}, \code{growth_rate}).}
+             computed as \eqn{log(P_t/P_{t-1})*100}, for the same age groups as in \code{population_by_time}.
+             It also contains the UN median
+             (columns \code{year}, \code{age}, \code{growth_rate}, \code{un_growth_rate_median}).}
      \item{births_counts_rates}{Data table with the forecast of total births (column \code{births}),
              crude birth rate (\code{cbr}) and the UN median and 95\% probability intervals 
              of the respective quantities
